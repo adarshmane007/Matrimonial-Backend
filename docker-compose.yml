@@ -1,0 +1,49 @@
+# Local stack: PostgreSQL + API (matches ECS image)
+# Usage: docker compose up -d --build
+# Then run frontend: cd ../Matrimonial && npm run dev
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: matrimonial-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: matrimonial
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d matrimonial"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: matrimonial-api
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      HOST: 0.0.0.0
+      JWT_SECRET: local-docker-dev-secret-min-32-chars
+      JWT_EXPIRES_IN: 7d
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/matrimonial
+      CORS_ORIGIN: http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173
+      SEED_ON_STARTUP: "true"
+      TRUST_PROXY: "false"
+      DB_SSL: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

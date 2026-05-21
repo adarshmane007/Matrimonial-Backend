@@ -1,0 +1,233 @@
+name: Deploy Matrimonial API to ECS
+
+on:
+  workflow_dispatch:
+    inputs:
+      skip_deploy:
+        type: boolean
+        description: "Build and push to ECR only (skip ECS service update)"
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  DEPLOY_CONFIG: .deploy/envs.json
+
+jobs:
+  build-and-deploy:
+    name: Build, push ECR, update ECS
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Load deploy config
+        id: config
+        run: |
+          if [ ! -f "$DEPLOY_CONFIG" ]; then
+            echo "Error: $DEPLOY_CONFIG not found"
+            exit 1
+          fi
+
+          AWS_REGION=$(jq -r '.common.aws_region' "$DEPLOY_CONFIG")
+          AWS_ACCOUNT_ID=$(jq -r '.common.aws_account_id' "$DEPLOY_CONFIG")
+          ECR_REPO_NAME=$(jq -r '.common.ecr_repo_name' "$DEPLOY_CONFIG")
+          LOCAL_IMAGE_NAME=$(jq -r '.common.local_image_name' "$DEPLOY_CONFIG")
+          ECS_CLUSTER_NAME=$(jq -r '.common.ecs_cluster_name' "$DEPLOY_CONFIG")
+          ECS_SERVICE_NAME=$(jq -r '.common.ecs_service_name' "$DEPLOY_CONFIG")
+          ECS_CONTAINER_NAME=$(jq -r '.common.ecs_container_name' "$DEPLOY_CONFIG")
+          DOCKER_PLATFORM=$(jq -r '.common.docker_platform' "$DEPLOY_CONFIG")
+
+          for v in "$AWS_REGION" "$AWS_ACCOUNT_ID" "$ECR_REPO_NAME" "$ECS_CLUSTER_NAME" "$ECS_SERVICE_NAME" "$ECS_CONTAINER_NAME"; do
+            if [ -z "$v" ] || [ "$v" = "null" ]; then
+              echo "Error: missing required value in $DEPLOY_CONFIG"
+              exit 1
+            fi
+          done
+
+          if [ "$AWS_ACCOUNT_ID" = "000000000000" ]; then
+            echo "Warning: set real aws_account_id in $DEPLOY_CONFIG"
+          fi
+
+          ECR_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}"
+
+          {
+            echo "AWS_REGION=${AWS_REGION}"
+            echo "AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID}"
+            echo "ECR_REPO_NAME=${ECR_REPO_NAME}"
+            echo "LOCAL_IMAGE_NAME=${LOCAL_IMAGE_NAME}"
+            echo "ECS_CLUSTER_NAME=${ECS_CLUSTER_NAME}"
+            echo "ECS_SERVICE_NAME=${ECS_SERVICE_NAME}"
+            echo "ECS_CONTAINER_NAME=${ECS_CONTAINER_NAME}"
+            echo "DOCKER_PLATFORM=${DOCKER_PLATFORM}"
+            echo "ECR_URI=${ECR_URI}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Generate image tags
+        id: version
+        run: |
+          VERSION="1.0.${GITHUB_RUN_NUMBER}"
+          SHA=$(git rev-parse --short HEAD)
+          echo "VERSION=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "SHA=${SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ steps.config.outputs.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Ensure ECR repository exists
+        env:
+          ECR_REPO_NAME: ${{ steps.config.outputs.ECR_REPO_NAME }}
+          AWS_REGION: ${{ steps.config.outputs.AWS_REGION }}
+        run: |
+          if aws ecr describe-repositories --repository-names "$ECR_REPO_NAME" --region "$AWS_REGION" 2>/dev/null; then
+            echo "ECR repository already exists: $ECR_REPO_NAME"
+          else
+            aws ecr create-repository \
+              --repository-name "$ECR_REPO_NAME" \
+              --region "$AWS_REGION" \
+              --image-scanning-configuration scanOnPush=true \
+              --image-tag-mutability MUTABLE
+            echo "Created ECR repository: $ECR_REPO_NAME"
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image
+        env:
+          ECR_URI: ${{ steps.config.outputs.ECR_URI }}
+          LOCAL_IMAGE_NAME: ${{ steps.config.outputs.LOCAL_IMAGE_NAME }}
+          DOCKER_PLATFORM: ${{ steps.config.outputs.DOCKER_PLATFORM }}
+          VERSION: ${{ steps.version.outputs.VERSION }}
+          SHA: ${{ steps.version.outputs.SHA }}
+        run: |
+          docker buildx build \
+            --platform "${DOCKER_PLATFORM}" \
+            --push \
+            -t "${ECR_URI}:latest" \
+            -t "${ECR_URI}:${VERSION}" \
+            -t "${ECR_URI}:${SHA}" \
+            .
+
+      - name: Resolve pushed image digest
+        id: image
+        env:
+          ECR_REPO_NAME: ${{ steps.config.outputs.ECR_REPO_NAME }}
+          AWS_REGION: ${{ steps.config.outputs.AWS_REGION }}
+          ECR_URI: ${{ steps.config.outputs.ECR_URI }}
+          SHA: ${{ steps.version.outputs.SHA }}
+        run: |
+          IMAGE_DIGEST=$(aws ecr describe-images \
+            --repository-name "$ECR_REPO_NAME" \
+            --image-ids imageTag="$SHA" \
+            --region "$AWS_REGION" \
+            --query 'imageDetails[0].imageDigest' \
+            --output text)
+
+          if [ -z "$IMAGE_DIGEST" ] || [ "$IMAGE_DIGEST" = "None" ] || [ "$IMAGE_DIGEST" = "null" ]; then
+            echo "Failed to resolve image digest for tag $SHA"
+            exit 1
+          fi
+
+          IMAGE_URI_DIGEST="${ECR_URI}@${IMAGE_DIGEST}"
+          echo "IMAGE_URI_DIGEST=${IMAGE_URI_DIGEST}" >> "$GITHUB_OUTPUT"
+          echo "Pushed image: ${IMAGE_URI_DIGEST}"
+
+      - name: Register new task definition and update ECS service
+        if: ${{ github.event.inputs.skip_deploy != 'true' }}
+        env:
+          AWS_REGION: ${{ steps.config.outputs.AWS_REGION }}
+          ECS_CLUSTER_NAME: ${{ steps.config.outputs.ECS_CLUSTER_NAME }}
+          ECS_SERVICE_NAME: ${{ steps.config.outputs.ECS_SERVICE_NAME }}
+          ECS_CONTAINER_NAME: ${{ steps.config.outputs.ECS_CONTAINER_NAME }}
+          IMAGE_URI_DIGEST: ${{ steps.image.outputs.IMAGE_URI_DIGEST }}
+        run: |
+          set -euo pipefail
+
+          CURRENT_TASK_DEF_ARN=$(aws ecs describe-services \
+            --cluster "$ECS_CLUSTER_NAME" \
+            --services "$ECS_SERVICE_NAME" \
+            --region "$AWS_REGION" \
+            --query 'services[0].taskDefinition' \
+            --output text)
+
+          if [ -z "$CURRENT_TASK_DEF_ARN" ] || [ "$CURRENT_TASK_DEF_ARN" = "None" ]; then
+            echo "Could not read task definition from service: $ECS_SERVICE_NAME"
+            exit 1
+          fi
+
+          echo "Current task definition: $CURRENT_TASK_DEF_ARN"
+
+          CURRENT_TASK_DEF=$(aws ecs describe-task-definition \
+            --task-definition "$CURRENT_TASK_DEF_ARN" \
+            --region "$AWS_REGION" \
+            --query 'taskDefinition' \
+            --output json)
+
+          CONTAINER_NAMES=$(echo "$CURRENT_TASK_DEF" | jq -r '.containerDefinitions[].name')
+          if ! echo "$CONTAINER_NAMES" | grep -qx "$ECS_CONTAINER_NAME"; then
+            echo "Container '$ECS_CONTAINER_NAME' not found in task definition."
+            echo "Available containers: $CONTAINER_NAMES"
+            exit 1
+          fi
+
+          NEW_TASK_DEF=$(echo "$CURRENT_TASK_DEF" | jq \
+            --arg IMAGE_URI "$IMAGE_URI_DIGEST" \
+            --arg CONTAINER_NAME "$ECS_CONTAINER_NAME" \
+            '.containerDefinitions |= map(
+              if .name == $CONTAINER_NAME then .image = $IMAGE_URI else . end
+            )
+            | del(.taskDefinitionArn)
+            | del(.revision)
+            | del(.status)
+            | del(.requiresAttributes)
+            | del(.compatibilities)
+            | del(.registeredAt)
+            | del(.registeredBy)
+            | del(.deregisteredAt)')
+
+          NEW_TASK_DEF_ARN=$(aws ecs register-task-definition \
+            --region "$AWS_REGION" \
+            --cli-input-json "$NEW_TASK_DEF" \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+
+          if [ -z "$NEW_TASK_DEF_ARN" ] || [ "$NEW_TASK_DEF_ARN" = "None" ]; then
+            echo "Failed to register new task definition"
+            exit 1
+          fi
+
+          echo "New task definition: $NEW_TASK_DEF_ARN"
+
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER_NAME" \
+            --service "$ECS_SERVICE_NAME" \
+            --task-definition "$NEW_TASK_DEF_ARN" \
+            --region "$AWS_REGION" \
+            --force-new-deployment \
+            --no-cli-pager
+
+          echo "ECS service updated to $NEW_TASK_DEF_ARN"
+
+      - name: Deployment summary
+        run: |
+          echo "## Deployment summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Image: \`${{ steps.image.outputs.IMAGE_URI_DIGEST }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Cluster: \`${{ steps.config.outputs.ECS_CLUSTER_NAME }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Service: \`${{ steps.config.outputs.ECS_SERVICE_NAME }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Container: \`${{ steps.config.outputs.ECS_CONTAINER_NAME }}\`" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ github.event.inputs.skip_deploy }}" = "true" ]; then
+            echo "- ECS update: **skipped** (ECR push only)" >> "$GITHUB_STEP_SUMMARY"
+          fi
