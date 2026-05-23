@@ -75,6 +75,33 @@ function buildSearchQuery(filters) {
   return { where: conditions.join(' AND '), params, nextIndex: i, orderBy };
 }
 
+async function getChatStatus(viewerUserId, targetUserId) {
+  if (!viewerUserId || !targetUserId) return 'none';
+  if (viewerUserId === targetUserId) return 'self';
+
+  const row = await queryOne(
+    `SELECT * FROM chat_requests
+     WHERE (from_user_id = $1 AND to_user_id = $2)
+        OR (from_user_id = $2 AND to_user_id = $1)`,
+    [viewerUserId, targetUserId]
+  );
+  if (!row) return 'none';
+  if (row.status === 'accepted') {
+    const [a, b] = viewerUserId < targetUserId ? [viewerUserId, targetUserId] : [targetUserId, viewerUserId];
+    const conv = await queryOne(
+      'SELECT id FROM chat_conversations WHERE user_one_id = $1 AND user_two_id = $2',
+      [a, b]
+    );
+    return { status: 'accepted', conversationId: conv?.id ?? null };
+  }
+  if (row.status === 'pending') {
+    return row.from_user_id === viewerUserId
+      ? { status: 'pending_sent', requestId: row.id }
+      : { status: 'pending_received', requestId: row.id };
+  }
+  return { status: 'declined', requestId: row.id };
+}
+
 router.get(
   '/me',
   authenticate,
@@ -132,19 +159,27 @@ router.get(
 
     const { where, params, nextIndex, orderBy } = buildSearchQuery(filterInput);
 
+    let searchWhere = where;
+    let searchParams = [...params];
+    let searchIdx = nextIndex;
+    if (req.user?.id) {
+      searchWhere += ` AND p.user_id != $${searchIdx++}`;
+      searchParams.push(req.user.id);
+    }
+
     const countRow = await queryOne(
-      `SELECT COUNT(*)::int AS total FROM profiles p WHERE ${where}`,
-      params
+      `SELECT COUNT(*)::int AS total FROM profiles p WHERE ${searchWhere}`,
+      searchParams
     );
 
-    const limitIdx = nextIndex;
-    const offsetIdx = nextIndex + 1;
+    const limitIdx = searchIdx;
+    const offsetIdx = searchIdx + 1;
     const rows = await queryAll(
       `SELECT p.* FROM profiles p
-       WHERE ${where}
+       WHERE ${searchWhere}
        ORDER BY ${orderBy}
        LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
-      [...params, limit, offset]
+      [...searchParams, limit, offset]
     );
 
     const total = countRow?.total ?? 0;
@@ -167,16 +202,24 @@ router.get(
 
 router.get(
   '/featured',
+  optionalAuth,
   asyncHandler(async (req, res) => {
     const lang = req.query.lang === 'mr' ? 'mr' : 'en';
     const limit = Math.min(Number(req.query.limit) || 6, 20);
 
+    const params = [limit];
+    let exclude = '';
+    if (req.user?.id) {
+      exclude = ' AND user_id != $2';
+      params.push(req.user.id);
+    }
+
     const rows = await queryAll(
       `SELECT * FROM profiles
-       WHERE visibility != 'hidden'
+       WHERE visibility != 'hidden'${exclude}
        ORDER BY is_featured DESC, is_verified DESC, created_at DESC
        LIMIT $1`,
-      [limit]
+      params
     );
 
     res.json({
@@ -199,7 +242,20 @@ router.get(
       return res.status(404).json({ success: false, message: 'Profile not found' });
     }
 
-    res.json({ success: true, data: toPublicProfile(row, lang) });
+    const profile = toPublicProfile(row, lang);
+    const chat = await getChatStatus(req.user?.id, row.user_id);
+    const chatStatus = typeof chat === 'string' ? chat : chat.status;
+
+    res.json({
+      success: true,
+      data: {
+        ...profile,
+        isOwnProfile: req.user?.id === row.user_id,
+        chatStatus,
+        chatRequestId: typeof chat === 'object' ? chat.requestId : null,
+        conversationId: typeof chat === 'object' ? chat.conversationId : null,
+      },
+    });
   })
 );
 

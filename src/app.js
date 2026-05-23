@@ -11,6 +11,7 @@ import testimonialRoutes from './routes/testimonials.js';
 import contactRoutes from './routes/contact.js';
 import metaRoutes from './routes/meta.js';
 import biodataRoutes from './routes/biodata.js';
+import chatRoutes from './routes/chat.js';
 import { securityHeaders } from './middleware/security.js';
 import { asyncHandler } from './utils/asyncHandler.js';
 
@@ -70,6 +71,7 @@ export function createApp() {
   app.use('/api/stats', statsRoutes);
   app.use('/api/testimonials', testimonialRoutes);
   app.use('/api/contact', contactRoutes);
+  app.use('/api/chat', chatRoutes);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

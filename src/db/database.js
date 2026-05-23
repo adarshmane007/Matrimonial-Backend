@@ -136,6 +136,37 @@ CREATE TABLE IF NOT EXISTS contact_messages (
   message TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS chat_requests (
+  id SERIAL PRIMARY KEY,
+  from_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  to_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  message TEXT,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (from_user_id, to_user_id)
+);
+
+CREATE TABLE IF NOT EXISTS chat_conversations (
+  id SERIAL PRIMARY KEY,
+  user_one_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_two_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (user_one_id, user_two_id),
+  CHECK (user_one_id < user_two_id)
+);
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id SERIAL PRIMARY KEY,
+  conversation_id INTEGER NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
+  sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  body TEXT NOT NULL CHECK (char_length(body) >= 1),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_messages_conversation
+  ON chat_messages (conversation_id, created_at);
 `;
 
 const MIGRATIONS_SQL = `
