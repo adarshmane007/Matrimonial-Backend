@@ -4,8 +4,14 @@ import { initDatabase, closePool } from './db/database.js';
 import { seedIfEmpty } from './seed.js';
 
 async function main() {
-  await initDatabase();
-  console.log('PostgreSQL connected and schema ready');
+  try {
+    console.log('Starting database initialization...');
+    await initDatabase();
+    console.log('PostgreSQL connected and schema ready');
+  } catch (err) {
+    console.error('Database initialization failed:', err);
+    throw err;
+  }
 
   if (config.seedOnStartup) {
     await seedIfEmpty();
@@ -17,6 +23,10 @@ async function main() {
       `Sakal Maratha API listening on ${config.host}:${config.port} (${config.nodeEnv})`
     );
     console.log('Health check: GET /api/health');
+  });
+
+  server.on('error', (err) => {
+    console.error('HTTP server error:', err);
   });
 
   function shutdown(signal) {
@@ -32,6 +42,15 @@ async function main() {
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
 }
+
+// Log uncaught errors for easier debugging in container logs
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled Rejection:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+});
 
 main().catch((err) => {
   console.error('Failed to start:', err);
