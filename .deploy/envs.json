@@ -4,9 +4,9 @@
     "aws_account_id": "435321829095",
     "ecr_repo_name": "matrimonial-production-ecr-matrimonial-backend",
     "local_image_name": "sakal-maratha-api",
-    "ecs_cluster_name": "matrimonial-cluster",
-    "ecs_service_name": "matrimonial-api-service",
-    "ecs_container_name": "matrimonial-api",
+    "ecs_cluster_name": "matrimonial-production-ecs-cluster",
+    "ecs_service_name": "matrimonial-backend",
+    "ecs_container_name": "",
     "docker_platform": "linux/amd64"
   }
 }

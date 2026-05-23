@@ -177,15 +177,21 @@ jobs:
             --output json)
 
           CONTAINER_NAMES=$(echo "$CURRENT_TASK_DEF" | jq -r '.containerDefinitions[].name')
-          if ! echo "$CONTAINER_NAMES" | grep -qx "$ECS_CONTAINER_NAME"; then
-            echo "Container '$ECS_CONTAINER_NAME' not found in task definition."
+          CONTAINER_NAME="${ECS_CONTAINER_NAME:-}"
+          if [ -z "$CONTAINER_NAME" ]; then
+            CONTAINER_NAME=$(echo "$CURRENT_TASK_DEF" | jq -r '.containerDefinitions[0].name')
+            echo "Using detected container name: $CONTAINER_NAME"
+          fi
+
+          if ! echo "$CONTAINER_NAMES" | grep -qx "$CONTAINER_NAME"; then
+            echo "Container '$CONTAINER_NAME' not found in task definition."
             echo "Available containers: $CONTAINER_NAMES"
             exit 1
           fi
 
           NEW_TASK_DEF=$(echo "$CURRENT_TASK_DEF" | jq \
             --arg IMAGE_URI "$IMAGE_URI_DIGEST" \
-            --arg CONTAINER_NAME "$ECS_CONTAINER_NAME" \
+            --arg CONTAINER_NAME "$CONTAINER_NAME" \
             '.containerDefinitions |= map(
               if .name == $CONTAINER_NAME then .image = $IMAGE_URI else . end
             )
