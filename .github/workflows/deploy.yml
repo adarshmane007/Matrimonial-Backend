@@ -42,7 +42,7 @@ jobs:
           ECS_CONTAINER_NAME=$(jq -r '.common.ecs_container_name' "$DEPLOY_CONFIG")
           DOCKER_PLATFORM=$(jq -r '.common.docker_platform' "$DEPLOY_CONFIG")
 
-          for v in "$AWS_REGION" "$AWS_ACCOUNT_ID" "$ECR_REPO_NAME" "$ECS_CLUSTER_NAME" "$ECS_SERVICE_NAME" "$ECS_CONTAINER_NAME"; do
+          for v in "$AWS_REGION" "$AWS_ACCOUNT_ID" "$ECR_REPO_NAME" "$ECS_CLUSTER_NAME" "$ECS_SERVICE_NAME"; do
             if [ -z "$v" ] || [ "$v" = "null" ]; then
               echo "Error: missing required value in $DEPLOY_CONFIG"
               exit 1
