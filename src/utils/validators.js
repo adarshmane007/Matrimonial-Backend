@@ -3,9 +3,11 @@ import { body, param, query, validationResult } from 'express-validator';
 export function validate(req, res, next) {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    const first = errors.array()[0];
+    const detail = first?.msg || first?.message || 'Validation failed';
     return res.status(400).json({
       success: false,
-      message: 'Validation failed',
+      message: typeof detail === 'string' ? detail : 'Validation failed',
       errors: errors.array(),
     });
   }
