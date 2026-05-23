@@ -1,8 +1,8 @@
 {
   "common": {
     "aws_region": "ap-south-1",
-    "aws_account_id": "000000000000",
-    "ecr_repo_name": "sakal-maratha-matrimonial-api",
+    "aws_account_id": "435321829095",
+    "ecr_repo_name": "matrimonial-production-ecr-matrimonial-backend",
     "local_image_name": "sakal-maratha-api",
     "ecs_cluster_name": "matrimonial-cluster",
     "ecs_service_name": "matrimonial-api-service",
