@@ -80,6 +80,17 @@ CREATE TABLE IF NOT EXISTS profiles (
   height TEXT,
   kul TEXT,
   bio TEXT,
+  salary TEXT,
+  income_bracket TEXT,
+  marital_status TEXT DEFAULT 'never_married',
+  diet TEXT,
+  manglik TEXT,
+  employment_type TEXT,
+  mother_tongue TEXT DEFAULT 'marathi',
+  family_type TEXT,
+  native_place TEXT,
+  father_occupation TEXT,
+  height_cm INTEGER,
   photo_url TEXT,
   is_verified BOOLEAN NOT NULL DEFAULT FALSE,
   is_online BOOLEAN NOT NULL DEFAULT FALSE,
@@ -127,6 +138,21 @@ CREATE TABLE IF NOT EXISTS contact_messages (
 );
 `;
 
+const MIGRATIONS_SQL = `
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS salary TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS income_bracket TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS marital_status TEXT DEFAULT 'never_married';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS diet TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS manglik TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS employment_type TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS mother_tongue TEXT DEFAULT 'marathi';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS family_type TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS native_place TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS father_occupation TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS height_cm INTEGER;
+`;
+
 export async function initDatabase() {
   await pool.query(SCHEMA_SQL);
+  await pool.query(MIGRATIONS_SQL);
 }

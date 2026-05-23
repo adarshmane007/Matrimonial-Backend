@@ -1,4 +1,5 @@
 import { DISTRICTS, EDUCATION_LEVELS } from '../constants.js';
+import { parseHeightToCm } from './heightUtils.js';
 
 const DISTRICT_ALIASES = DISTRICTS.flatMap((d) => [
   { value: d.value, tokens: [d.value, d.labelEn.toLowerCase(), d.labelMr] },
@@ -107,6 +108,59 @@ function parseOccupation(text) {
   );
 }
 
+function parseSalary(text) {
+  return (
+    firstMatch(text, /(?:salary|annual\s*income|income|पगार|वार्षिक\s*उत्पन्न)[:\s*]+([^\n,]+)/i) ||
+    null
+  );
+}
+
+function parseMaritalStatus(text) {
+  const lower = text.toLowerCase();
+  if (/\b(divorced|घटस्फोट)\b/i.test(lower)) return 'divorced';
+  if (/\b(widow|widower|widowed|वैधव्य|विधुर|विधवा)\b/i.test(lower)) return 'widowed';
+  if (/\b(unmarried|never\s*married|अविवाहित)\b/i.test(lower)) return 'never_married';
+  return null;
+}
+
+function parseDiet(text) {
+  const lower = text.toLowerCase();
+  if (/\b(veg|vegetarian|शाकाहारी)\b/i.test(lower) && !/non[\s-]*veg/i.test(lower))
+    return 'veg';
+  if (/\b(non[\s-]*veg|मांसाहारी)\b/i.test(lower)) return 'non_veg';
+  if (/\b(eggetarian|अंडाहारी)\b/i.test(lower)) return 'eggetarian';
+  return null;
+}
+
+function parseManglik(text) {
+  if (/\b(manglik|मंगळ)\b/i.test(text) && !/non[\s-]*manglik/i.test(text)) return 'yes';
+  if (/\b(non[\s-]*manglik|नॉन[\s-]*मंगळ)\b/i.test(text)) return 'no';
+  return null;
+}
+
+function parseEmploymentType(text) {
+  const labeled = firstMatch(
+    text,
+    /(?:employed\s*in|working\s*in|sector)[:\s*]+([^\n,]+)/i
+  );
+  const lower = (labeled || text).toLowerCase();
+  if (/\b(govt|government|सरकारी)\b/i.test(lower)) return 'govt';
+  if (/\b(business|self[\s-]*employ|व्यवसाय)\b/i.test(lower)) return 'business';
+  if (/\b(private|खाजगी)\b/i.test(lower)) return 'private';
+  return null;
+}
+
+function parseNativePlace(text) {
+  return firstMatch(text, /(?:native|birth\s*place|मूळ\s*ठिकाण|गाव)[:\s*]+([^\n,]+)/i);
+}
+
+function parseFatherOccupation(text) {
+  return firstMatch(
+    text,
+    /(?:father'?s?\s*occupation|वडिलांचा\s*व्यवसाय|father)[:\s*]+([^\n,]+)/i
+  );
+}
+
 function parseEducationText(text) {
   return firstMatch(text, /(?:education|शिक्षण|qualification)[:\s*]+([^\n,]+)/i);
 }
@@ -145,6 +199,13 @@ export function parseBiodata(rawText) {
   const height = parseHeight(text);
   const kul = parseKul(text);
   const occupation = parseOccupation(text);
+  const salary = parseSalary(text);
+  const maritalStatus = parseMaritalStatus(text);
+  const diet = parseDiet(text);
+  const manglik = parseManglik(text);
+  const employmentType = parseEmploymentType(text);
+  const nativePlace = parseNativePlace(text);
+  const fatherOccupation = parseFatherOccupation(text);
   const city = parseCity(text, district);
 
   if (!fullName) warnings.push('Name not detected — please enter manually.');
@@ -161,7 +222,15 @@ export function parseBiodata(rawText) {
     education: education || (educationLevel ? EDUCATION_LEVELS.find((e) => e.value === educationLevel)?.labelEn : '') || '',
     educationLevel: educationLevel || '',
     occupation: occupation || '',
+    salary: salary || '',
+    maritalStatus: maritalStatus || 'never_married',
+    diet: diet || '',
+    manglik: manglik || '',
+    employmentType: employmentType || '',
+    nativePlace: nativePlace || '',
+    fatherOccupation: fatherOccupation || '',
     height: height || '',
+    heightCm: height ? parseHeightToCm(height) : null,
     kul: kul || '',
     bio,
   };

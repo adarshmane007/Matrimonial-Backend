@@ -50,6 +50,7 @@ router.post(
       height,
       kul,
       bio,
+      salary,
     } = req.body;
 
     const normalizedEmail = email?.toLowerCase() || null;
@@ -81,8 +82,8 @@ router.post(
       await client.query(
         `INSERT INTO profiles (
           user_id, gender, display_name, age, district, city,
-          education, education_level, occupation, height, kul, bio, is_featured
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, FALSE)`,
+          education, education_level, occupation, height, kul, bio, salary, is_featured
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, FALSE)`,
         [
           newUserId,
           gender,
@@ -96,6 +97,7 @@ router.post(
           height || null,
           kul || null,
           bio || null,
+          salary || null,
         ]
       );
       return newUserId;

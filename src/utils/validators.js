@@ -32,6 +32,7 @@ export const registerRules = [
   body('height').optional({ values: 'null' }).trim().isLength({ max: 20 }),
   body('kul').optional({ values: 'null' }).trim().isLength({ max: 60 }),
   body('bio').optional({ values: 'null' }).trim().isLength({ max: 8000 }),
+  body('salary').optional({ values: 'null' }).trim().isLength({ max: 80 }),
   body().custom((_value, { req }) => {
     if (!req.body.email && !req.body.mobile) {
       throw new Error('Email or mobile is required');
@@ -50,9 +51,33 @@ export const profileRules = [
   body('displayName').optional().trim().isLength({ min: 2, max: 120 }),
   body('age').optional().isInt({ min: 18, max: 80 }),
   body('district').optional().trim().notEmpty(),
+  body('city').optional({ values: 'null' }).trim().isLength({ max: 80 }),
+  body('education').optional({ values: 'null' }).trim().isLength({ max: 200 }),
   body('educationLevel')
     .optional({ values: 'null' })
     .isIn(['grad', 'pg', 'eng', 'med', 'mba']),
+  body('occupation').optional({ values: 'null' }).trim().isLength({ max: 120 }),
+  body('height').optional({ values: 'null' }).trim().isLength({ max: 20 }),
+  body('kul').optional({ values: 'null' }).trim().isLength({ max: 60 }),
+  body('bio').optional({ values: 'null' }).trim().isLength({ max: 8000 }),
+  body('salary').optional({ values: 'null' }).trim().isLength({ max: 80 }),
+  body('photoUrl').optional({ values: 'null' }).trim().isLength({ max: 500000 }),
+  body('incomeBracket')
+    .optional({ values: 'null' })
+    .isIn(['below_3', '3_5', '5_10', '10_20', 'above_20']),
+  body('maritalStatus')
+    .optional({ values: 'null' })
+    .isIn(['never_married', 'divorced', 'widowed', 'awaiting_divorce']),
+  body('diet').optional({ values: 'null' }).isIn(['veg', 'non_veg', 'eggetarian']),
+  body('manglik').optional({ values: 'null' }).isIn(['yes', 'no', 'dont_know']),
+  body('employmentType')
+    .optional({ values: 'null' })
+    .isIn(['private', 'govt', 'business', 'not_working']),
+  body('motherTongue').optional({ values: 'null' }).isIn(['marathi', 'hindi', 'english']),
+  body('familyType').optional({ values: 'null' }).isIn(['joint', 'nuclear']),
+  body('nativePlace').optional({ values: 'null' }).trim().isLength({ max: 80 }),
+  body('fatherOccupation').optional({ values: 'null' }).trim().isLength({ max: 120 }),
+  body('heightCm').optional({ values: 'null' }).isInt({ min: 140, max: 220 }),
   body('visibility').optional().isIn(['public', 'members', 'hidden']),
 ];
 
@@ -62,6 +87,24 @@ export const searchRules = [
   query('ageTo').optional().isInt({ min: 18, max: 80 }),
   query('district').optional().trim(),
   query('education').optional().isIn(['any', 'grad', 'pg', 'eng', 'med', 'mba']),
+  query('kul').optional().trim().isLength({ max: 60 }),
+  query('occupation').optional().trim().isLength({ max: 80 }),
+  query('maritalStatus')
+    .optional()
+    .isIn(['any', 'never_married', 'divorced', 'widowed', 'awaiting_divorce']),
+  query('diet').optional().isIn(['any', 'veg', 'non_veg', 'eggetarian']),
+  query('manglik').optional().isIn(['any', 'yes', 'no', 'dont_know']),
+  query('employmentType').optional().isIn(['any', 'private', 'govt', 'business', 'not_working']),
+  query('motherTongue').optional().isIn(['any', 'marathi', 'hindi', 'english']),
+  query('familyType').optional().isIn(['any', 'joint', 'nuclear']),
+  query('incomeBracket')
+    .optional()
+    .isIn(['any', 'below_3', '3_5', '5_10', '10_20', 'above_20']),
+  query('heightFrom').optional().isInt({ min: 140, max: 220 }),
+  query('heightTo').optional().isInt({ min: 140, max: 220 }),
+  query('verifiedOnly').optional().isIn(['true', 'false']),
+  query('withPhotoOnly').optional().isIn(['true', 'false']),
+  query('sort').optional().isIn(['recent', 'age_asc', 'age_desc']),
   query('page').optional().isInt({ min: 1 }),
   query('limit').optional().isInt({ min: 1, max: 50 }),
 ];

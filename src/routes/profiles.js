@@ -8,6 +8,7 @@ import {
   validate,
 } from '../utils/validators.js';
 import { toPublicProfile } from '../utils/profileMapper.js';
+import { parseHeightToCm } from '../utils/heightUtils.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 const router = Router();
@@ -17,10 +18,14 @@ function buildSearchQuery(filters) {
   const params = [];
   let i = 1;
 
-  if (filters.gender) {
-    conditions.push(`p.gender = $${i++}`);
-    params.push(filters.gender);
-  }
+  const addEq = (col, val) => {
+    if (val && val !== 'any' && val !== 'all') {
+      conditions.push(`p.${col} = $${i++}`);
+      params.push(val);
+    }
+  };
+
+  addEq('gender', filters.gender);
   if (filters.ageFrom) {
     conditions.push(`p.age >= $${i++}`);
     params.push(filters.ageFrom);
@@ -29,17 +34,68 @@ function buildSearchQuery(filters) {
     conditions.push(`p.age <= $${i++}`);
     params.push(filters.ageTo);
   }
-  if (filters.district && filters.district !== 'all') {
-    conditions.push(`p.district = $${i++}`);
-    params.push(filters.district);
+  addEq('district', filters.district);
+  addEq('education_level', filters.education);
+  addEq('marital_status', filters.maritalStatus);
+  addEq('diet', filters.diet);
+  addEq('manglik', filters.manglik);
+  addEq('employment_type', filters.employmentType);
+  addEq('mother_tongue', filters.motherTongue);
+  addEq('family_type', filters.familyType);
+  addEq('income_bracket', filters.incomeBracket);
+
+  if (filters.kul?.trim()) {
+    conditions.push(`p.kul ILIKE $${i++}`);
+    params.push(`%${filters.kul.trim()}%`);
   }
-  if (filters.education && filters.education !== 'any') {
-    conditions.push(`p.education_level = $${i++}`);
-    params.push(filters.education);
+  if (filters.occupation?.trim()) {
+    conditions.push(`(p.occupation ILIKE $${i} OR p.education ILIKE $${i})`);
+    params.push(`%${filters.occupation.trim()}%`);
+    i++;
+  }
+  if (filters.heightFrom) {
+    conditions.push(`p.height_cm >= $${i++}`);
+    params.push(filters.heightFrom);
+  }
+  if (filters.heightTo) {
+    conditions.push(`p.height_cm <= $${i++}`);
+    params.push(filters.heightTo);
+  }
+  if (filters.verifiedOnly === true || filters.verifiedOnly === 'true') {
+    conditions.push('p.is_verified = TRUE');
+  }
+  if (filters.withPhotoOnly === true || filters.withPhotoOnly === 'true') {
+    conditions.push("p.photo_url IS NOT NULL AND p.photo_url != ''");
   }
 
-  return { where: conditions.join(' AND '), params, nextIndex: i };
+  let orderBy = 'p.is_featured DESC, p.is_verified DESC, p.created_at DESC';
+  if (filters.sort === 'age_asc') orderBy = 'p.age ASC, p.created_at DESC';
+  if (filters.sort === 'age_desc') orderBy = 'p.age DESC, p.created_at DESC';
+
+  return { where: conditions.join(' AND '), params, nextIndex: i, orderBy };
 }
+
+router.get(
+  '/me',
+  authenticate,
+  asyncHandler(async (req, res) => {
+    const row = await queryOne('SELECT * FROM profiles WHERE user_id = $1', [req.user.id]);
+
+    if (!row) {
+      return res.status(404).json({ success: false, message: 'Profile not found' });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        ...toPublicProfile(row),
+        email: req.user.email ?? null,
+        mobile: req.user.mobile ?? null,
+        fullName: req.user.full_name,
+      },
+    });
+  })
+);
 
 router.get(
   '/search',
@@ -52,13 +108,29 @@ router.get(
     const limit = Number(req.query.limit) || 12;
     const offset = (page - 1) * limit;
 
-    const { where, params, nextIndex } = buildSearchQuery({
+    const filterInput = {
       gender: req.query.gender,
       ageFrom: req.query.ageFrom ? Number(req.query.ageFrom) : undefined,
       ageTo: req.query.ageTo ? Number(req.query.ageTo) : undefined,
       district: req.query.district,
       education: req.query.education,
-    });
+      kul: req.query.kul,
+      maritalStatus: req.query.maritalStatus,
+      diet: req.query.diet,
+      manglik: req.query.manglik,
+      employmentType: req.query.employmentType,
+      motherTongue: req.query.motherTongue,
+      familyType: req.query.familyType,
+      incomeBracket: req.query.incomeBracket,
+      occupation: req.query.occupation,
+      heightFrom: req.query.heightFrom ? Number(req.query.heightFrom) : undefined,
+      heightTo: req.query.heightTo ? Number(req.query.heightTo) : undefined,
+      verifiedOnly: req.query.verifiedOnly,
+      withPhotoOnly: req.query.withPhotoOnly,
+      sort: req.query.sort,
+    };
+
+    const { where, params, nextIndex, orderBy } = buildSearchQuery(filterInput);
 
     const countRow = await queryOne(
       `SELECT COUNT(*)::int AS total FROM profiles p WHERE ${where}`,
@@ -70,7 +142,7 @@ router.get(
     const rows = await queryAll(
       `SELECT p.* FROM profiles p
        WHERE ${where}
-       ORDER BY p.is_featured DESC, p.is_verified DESC, p.created_at DESC
+       ORDER BY ${orderBy}
        LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
       [...params, limit, offset]
     );
@@ -87,13 +159,7 @@ router.get(
           total,
           totalPages: Math.ceil(total / limit) || 0,
         },
-        filters: {
-          gender: req.query.gender || null,
-          ageFrom: req.query.ageFrom || null,
-          ageTo: req.query.ageTo || null,
-          district: req.query.district || 'all',
-          education: req.query.education || 'any',
-        },
+        filters: filterInput,
       },
     });
   })
@@ -161,10 +227,29 @@ router.put(
       height: req.body.height?.trim(),
       kul: req.body.kul?.trim(),
       bio: req.body.bio?.trim(),
+      salary: req.body.salary?.trim(),
+      income_bracket: req.body.incomeBracket,
+      marital_status: req.body.maritalStatus,
+      diet: req.body.diet,
+      manglik: req.body.manglik,
+      employment_type: req.body.employmentType,
+      mother_tongue: req.body.motherTongue,
+      family_type: req.body.familyType,
+      native_place: req.body.nativePlace?.trim(),
+      father_occupation: req.body.fatherOccupation?.trim(),
       photo_url: req.body.photoUrl?.trim(),
       visibility: req.body.visibility,
       is_online: req.body.isOnline !== undefined ? Boolean(req.body.isOnline) : undefined,
     };
+
+    if (req.body.height !== undefined || req.body.heightCm !== undefined) {
+      const cm =
+        req.body.heightCm != null
+          ? Number(req.body.heightCm)
+          : parseHeightToCm(req.body.height);
+      fields.height_cm = cm || null;
+      if (req.body.height !== undefined) fields.height = req.body.height?.trim() || null;
+    }
 
     const updates = [];
     const values = [];

@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { queryOne, withTransaction } from './db/database.js';
+import { parseHeightToCm } from './utils/heightUtils.js';
 
 const DEMO_PASSWORD = 'demo1234';
 
@@ -145,9 +146,10 @@ export async function seedIfEmpty() {
       await client.query(
         `INSERT INTO profiles (
           user_id, gender, display_name, age, district, city,
-          education, education_level, occupation, height, kul,
-          is_verified, is_online, is_featured, visibility
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'members')`,
+          education, education_level, occupation, height, height_cm, kul,
+          marital_status, diet, employment_type, mother_tongue, family_type,
+          income_bracket, is_verified, is_online, is_featured, visibility
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, 'members')`,
         [
           userId,
           p.gender,
@@ -159,7 +161,14 @@ export async function seedIfEmpty() {
           p.educationLevel,
           p.occupation,
           p.height,
+          parseHeightToCm(p.height),
           p.kul,
+          'never_married',
+          'veg',
+          'private',
+          'marathi',
+          'joint',
+          '5_10',
           p.isVerified,
           p.isOnline,
           p.isFeatured,
