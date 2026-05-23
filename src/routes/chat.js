@@ -82,6 +82,39 @@ router.post(
 );
 
 router.get(
+  '/unread-summary',
+  asyncHandler(async (req, res) => {
+    const pendingRow = await queryOne(
+      `SELECT COUNT(*)::int AS c FROM chat_requests
+       WHERE to_user_id = $1 AND status = 'pending'`,
+      [req.user.id]
+    );
+
+    const unreadRow = await queryOne(
+      `SELECT COUNT(*)::int AS c
+       FROM chat_messages m
+       JOIN chat_conversations c ON c.id = m.conversation_id
+       WHERE (c.user_one_id = $1 OR c.user_two_id = $1)
+         AND m.sender_id != $1
+         AND m.read_at IS NULL`,
+      [req.user.id]
+    );
+
+    const pendingRequests = pendingRow?.c ?? 0;
+    const unreadMessages = unreadRow?.c ?? 0;
+
+    res.json({
+      success: true,
+      data: {
+        pendingRequests,
+        unreadMessages,
+        total: pendingRequests + unreadMessages,
+      },
+    });
+  })
+);
+
+router.get(
   '/requests/incoming',
   asyncHandler(async (req, res) => {
     const rows = await queryAll(
@@ -187,7 +220,9 @@ router.get(
               CASE WHEN c.user_one_id = $1 THEN c.user_two_id ELSE c.user_one_id END AS other_user_id,
               p.id AS other_profile_id, p.display_name, p.photo_url,
               (SELECT body FROM chat_messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS last_message,
-              (SELECT created_at FROM chat_messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS last_at
+              (SELECT created_at FROM chat_messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS last_at,
+              (SELECT COUNT(*)::int FROM chat_messages m
+               WHERE m.conversation_id = c.id AND m.sender_id != $1 AND m.read_at IS NULL) AS unread_count
        FROM chat_conversations c
        JOIN users u1 ON u1.id = c.user_one_id
        JOIN users u2 ON u2.id = c.user_two_id
@@ -208,6 +243,7 @@ router.get(
           : null,
         lastMessage: r.last_message,
         lastAt: r.last_at,
+        unreadCount: r.unread_count ?? 0,
       })),
     });
   })
@@ -230,6 +266,12 @@ router.get(
        WHERE m.conversation_id = $1
        ORDER BY m.created_at ASC`,
       [req.params.id]
+    );
+
+    await query(
+      `UPDATE chat_messages SET read_at = NOW()
+       WHERE conversation_id = $1 AND sender_id != $2 AND read_at IS NULL`,
+      [req.params.id, req.user.id]
     );
 
     res.json({
