@@ -9,6 +9,7 @@ import {
 } from '../utils/validators.js';
 import { toPublicProfile } from '../utils/profileMapper.js';
 import { parseHeightToCm } from '../utils/heightUtils.js';
+import { normalizeLocationInput } from '../locations.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 const router = Router();
@@ -34,6 +35,7 @@ function buildSearchQuery(filters) {
     conditions.push(`p.age <= $${i++}`);
     params.push(filters.ageTo);
   }
+  addEq('state', filters.state);
   addEq('district', filters.district);
   addEq('education_level', filters.education);
   addEq('marital_status', filters.maritalStatus);
@@ -139,6 +141,7 @@ router.get(
       gender: req.query.gender,
       ageFrom: req.query.ageFrom ? Number(req.query.ageFrom) : undefined,
       ageTo: req.query.ageTo ? Number(req.query.ageTo) : undefined,
+      state: req.query.state,
       district: req.query.district,
       education: req.query.education,
       kul: req.query.kul,
@@ -271,12 +274,15 @@ router.put(
       return res.status(404).json({ success: false, message: 'Profile not found' });
     }
 
+    const loc = normalizeLocationInput(req.body);
+
     const fields = {
       gender: req.body.gender,
       display_name: req.body.displayName?.trim(),
       age: req.body.age,
-      district: req.body.district?.trim(),
-      city: req.body.city?.trim(),
+      state: loc.state,
+      district: loc.district,
+      city: loc.city,
       education: req.body.education?.trim(),
       education_level: req.body.educationLevel,
       occupation: req.body.occupation?.trim(),

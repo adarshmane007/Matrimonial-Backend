@@ -182,6 +182,7 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS native_place TEXT;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS father_occupation TEXT;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS height_cm INTEGER;
 ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS read_at TIMESTAMPTZ;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS state TEXT DEFAULT 'mh';
 `;
 
 export async function initDatabase() {

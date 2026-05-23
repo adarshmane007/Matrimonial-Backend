@@ -1,14 +1,11 @@
-/** Shared options used by API meta and validation. Keep in sync with frontend constants if duplicated. */
-export const DISTRICTS = [
-  { value: 'pune', labelEn: 'Pune', labelMr: 'पुणे' },
-  { value: 'mumbai', labelEn: 'Mumbai', labelMr: 'मुंबई' },
-  { value: 'nashik', labelEn: 'Nashik', labelMr: 'नाशिक' },
-  { value: 'kolhapur', labelEn: 'Kolhapur', labelMr: 'कोल्हापूर' },
-  { value: 'satara', labelEn: 'Satara', labelMr: 'सातारा' },
-  { value: 'sangli', labelEn: 'Sangli', labelMr: 'सांगली' },
-  { value: 'aurangabad', labelEn: 'Aurangabad', labelMr: 'औरंगाबाद' },
-  { value: 'nagpur', labelEn: 'Nagpur', labelMr: 'नागपूर' },
-];
+import { CITIES_BY_STATE } from './locations.js';
+
+/** Legacy export — Maharashtra cities (browse/search defaults). */
+export const DISTRICTS = (CITIES_BY_STATE.mh || []).map((c) => ({
+  value: c.value,
+  labelEn: c.labelEn,
+  labelMr: c.labelMr,
+}));
 
 export const EDUCATION_LEVELS = [
   { value: 'grad', labelEn: 'Graduate', labelMr: 'पदवीधर' },

@@ -22,7 +22,10 @@ export const registerRules = [
   body('password').isLength({ min: 6, max: 128 }),
   body('gender').isIn(['bride', 'groom']),
   body('age').isInt({ min: 18, max: 80 }),
-  body('district').trim().notEmpty(),
+  body('state').optional().trim().isLength({ max: 10 }),
+  body('cityKey').optional().trim().isLength({ max: 80 }),
+  body('cityCustom').optional({ values: 'null' }).trim().isLength({ max: 80 }),
+  body('district').optional({ values: 'null' }).trim(),
   body('city').optional({ values: 'null' }).trim().isLength({ max: 80 }),
   body('education').optional({ values: 'null' }).trim().isLength({ max: 200 }),
   body('educationLevel')
@@ -37,6 +40,9 @@ export const registerRules = [
     if (!req.body.email && !req.body.mobile) {
       throw new Error('Email or mobile is required');
     }
+    if (!req.body.state && !req.body.district && !req.body.cityKey && !req.body.city) {
+      throw new Error('State and city are required');
+    }
     return true;
   }),
 ];
@@ -50,7 +56,10 @@ export const profileRules = [
   body('gender').optional().isIn(['bride', 'groom']),
   body('displayName').optional().trim().isLength({ min: 2, max: 120 }),
   body('age').optional().isInt({ min: 18, max: 80 }),
-  body('district').optional().trim().notEmpty(),
+  body('state').optional().trim().isLength({ max: 10 }),
+  body('cityKey').optional().trim().isLength({ max: 80 }),
+  body('cityCustom').optional({ values: 'null' }).trim().isLength({ max: 80 }),
+  body('district').optional({ values: 'null' }).trim(),
   body('city').optional({ values: 'null' }).trim().isLength({ max: 80 }),
   body('education').optional({ values: 'null' }).trim().isLength({ max: 200 }),
   body('educationLevel')
@@ -85,7 +94,9 @@ export const searchRules = [
   query('gender').optional().isIn(['bride', 'groom']),
   query('ageFrom').optional().isInt({ min: 18, max: 80 }),
   query('ageTo').optional().isInt({ min: 18, max: 80 }),
+  query('state').optional().trim(),
   query('district').optional().trim(),
+  query('city').optional().trim(),
   query('education').optional().isIn(['any', 'grad', 'pg', 'eng', 'med', 'mba']),
   query('kul').optional().trim().isLength({ max: 60 }),
   query('occupation').optional().trim().isLength({ max: 80 }),

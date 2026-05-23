@@ -12,6 +12,12 @@ import {
   INCOME_BRACKETS,
   HEIGHT_CM_OPTIONS,
 } from '../constants.js';
+import {
+  getStateList,
+  getCitiesForState,
+  getAllCitiesFlat,
+  CITY_OTHER,
+} from '../locations.js';
 
 const router = Router();
 
@@ -32,12 +38,18 @@ router.get('/', (req, res) => {
   res.json({
     success: true,
     data: {
+      states: getStateList(lang),
+      cityOtherValue: CITY_OTHER,
       districts: mapOptions(
         DISTRICTS,
         lang,
         'all',
         lang === 'mr' ? 'संपूर्ण महाराष्ट्र' : 'All Maharashtra'
       ),
+      allCities: [
+        { value: 'all', label: lang === 'mr' ? 'सर्व शहरे' : 'All cities' },
+        ...getAllCitiesFlat(lang),
+      ],
       educationLevels: mapOptions(
         EDUCATION_LEVELS,
         lang,
@@ -97,6 +109,22 @@ router.get('/', (req, res) => {
         { value: 'age_desc', label: lang === 'mr' ? 'वय — जास्त ते कमी' : 'Age — high to low' },
       ],
     },
+  });
+});
+
+router.get('/cities', (req, res) => {
+  const lang = req.query.lang === 'mr' ? 'mr' : 'en';
+  const state = String(req.query.state || '').trim();
+  if (!state) {
+    return res.status(400).json({ success: false, message: 'state query required' });
+  }
+  const cities = getCitiesForState(state, lang);
+  res.json({
+    success: true,
+    data: [
+      ...cities,
+      { value: CITY_OTHER, label: lang === 'mr' ? 'इतर (इतर शहर टाइप करा)' : 'Other (type city name)' },
+    ],
   });
 });
 

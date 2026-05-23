@@ -5,6 +5,7 @@ import { authenticate } from '../middleware/auth.js';
 import { signToken } from '../utils/tokens.js';
 import { registerRules, loginRules, validate } from '../utils/validators.js';
 import { toPublicProfile } from '../utils/profileMapper.js';
+import { normalizeLocationInput } from '../locations.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 const router = Router();
@@ -35,6 +36,8 @@ router.post(
   registerRules,
   validate,
   asyncHandler(async (req, res) => {
+    const loc = normalizeLocationInput(req.body);
+
     const {
       fullName,
       email,
@@ -42,8 +45,6 @@ router.post(
       password,
       gender,
       age,
-      district,
-      city,
       education,
       educationLevel,
       occupation,
@@ -81,16 +82,17 @@ router.post(
 
       await client.query(
         `INSERT INTO profiles (
-          user_id, gender, display_name, age, district, city,
+          user_id, gender, display_name, age, state, district, city,
           education, education_level, occupation, height, kul, bio, salary, is_featured
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, FALSE)`,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, FALSE)`,
         [
           newUserId,
           gender,
           fullName.trim(),
           age,
-          district,
-          city || null,
+          loc.state,
+          loc.district,
+          loc.city || null,
           education || null,
           educationLevel || null,
           occupation || null,

@@ -1,6 +1,5 @@
 /** Public profile shape (privacy-safe for listings). */
 import {
-  DISTRICTS,
   MARITAL_STATUS,
   DIET_OPTIONS,
   MANGALIK_OPTIONS,
@@ -11,6 +10,7 @@ import {
   EDUCATION_LEVELS,
 } from '../constants.js';
 import { cmToDisplay } from './heightUtils.js';
+import { formatCityLabel, formatStateLabel } from '../locations.js';
 
 function labelFor(list, value, lang) {
   if (!value) return null;
@@ -20,7 +20,9 @@ function labelFor(list, value, lang) {
 }
 
 export function toPublicProfile(row, lang = 'en') {
-  const districtLabel = formatDistrict(row.district, lang);
+  const state = row.state || 'mh';
+  const districtLabel = formatCityLabel(state, row.district, row.city, lang);
+  const stateLabel = formatStateLabel(state, lang);
   const heightDisplay = row.height || (row.height_cm ? cmToDisplay(row.height_cm) : null);
   const incomeLabel =
     labelFor(INCOME_BRACKETS, row.income_bracket, lang) || row.salary || null;
@@ -44,9 +46,11 @@ export function toPublicProfile(row, lang = 'en') {
     displayName: row.display_name,
     gender: row.gender,
     age: row.age,
+    state,
+    stateLabel,
     district: row.district,
     districtLabel,
-    city: row.city,
+    city: row.city || districtLabel,
     nativePlace: row.native_place,
     education: row.education,
     educationLevel: row.education_level,
@@ -82,12 +86,6 @@ export function toPublicProfile(row, lang = 'en') {
   };
 }
 
-const DISTRICT_LABELS = {
-  en: Object.fromEntries(DISTRICTS.map((d) => [d.value, d.labelEn])),
-  mr: Object.fromEntries(DISTRICTS.map((d) => [d.value, d.labelMr])),
-};
-
 export function formatDistrict(code, lang = 'en') {
-  const dict = DISTRICT_LABELS[lang === 'mr' ? 'mr' : 'en'];
-  return dict[code] || code;
+  return formatCityLabel('mh', code, null, lang);
 }
