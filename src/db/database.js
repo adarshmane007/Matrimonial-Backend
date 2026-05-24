@@ -201,4 +201,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS deletion_scheduled_at TIMESTAMPTZ;
 export async function initDatabase() {
   await pool.query(SCHEMA_SQL);
   await pool.query(MIGRATIONS_SQL);
+  await pool.query(
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS deletion_scheduled_at TIMESTAMPTZ`
+  );
 }

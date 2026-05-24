@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import { queryOne, withTransaction } from '../db/database.js';
+import { query, queryOne, withTransaction } from '../db/database.js';
 import { authenticate } from '../middleware/auth.js';
 import { signToken } from '../utils/tokens.js';
 import { registerRules, loginRules, validate } from '../utils/validators.js';
@@ -12,6 +12,12 @@ import {
   purgeExpiredAccountDeletions,
   resolveUserOrDelete,
 } from '../utils/accountDeletion.js';
+
+async function ensureDeletionColumn() {
+  await query(
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS deletion_scheduled_at TIMESTAMPTZ`
+  );
+}
 
 const router = Router();
 
@@ -136,6 +142,7 @@ router.post(
   validate,
   asyncHandler(async (req, res) => {
     const { identifier, password } = req.body;
+    await ensureDeletionColumn();
     await purgeExpiredAccountDeletions();
     const user = await findUserByIdentifier(identifier);
 
@@ -155,14 +162,18 @@ router.post(
 
     const profile = await queryOne('SELECT * FROM profiles WHERE user_id = $1', [activeUser.id]);
     const token = signToken(activeUser.id);
+    const accountDeletion = deletionStatusForUser(activeUser);
 
     res.json({
       success: true,
-      message: 'Login successful',
+      message: accountDeletion
+        ? 'Signed in. Your account is still scheduled for deletion.'
+        : 'Login successful',
       data: {
         token,
         user: formatUser(activeUser),
         profile: profile ? toPublicProfile(profile) : null,
+        deletionPending: Boolean(accountDeletion),
       },
     });
   })
@@ -187,11 +198,16 @@ router.post(
   '/account/delete-request',
   authenticate,
   asyncHandler(async (req, res) => {
+    await ensureDeletionColumn();
+
     if (req.user.deletion_scheduled_at) {
       return res.json({
         success: true,
         message: 'Account deletion is already scheduled.',
-        data: { accountDeletion: deletionStatusForUser(req.user) },
+        data: {
+          user: formatUser(req.user),
+          accountDeletion: deletionStatusForUser(req.user),
+        },
       });
     }
 
@@ -220,6 +236,8 @@ router.post(
   '/account/cancel-deletion',
   authenticate,
   asyncHandler(async (req, res) => {
+    await ensureDeletionColumn();
+
     if (!req.user.deletion_scheduled_at) {
       return res.status(400).json({
         success: false,
@@ -250,7 +268,7 @@ router.post(
     res.json({
       success: true,
       message: 'Account deletion cancelled. Your profile is visible again.',
-      data: { user: formatUser(user), accountDeletion: deletionStatusForUser(user) },
+      data: { user: formatUser(user) },
     });
   })
 );
