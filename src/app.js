@@ -12,6 +12,7 @@ import contactRoutes from './routes/contact.js';
 import metaRoutes from './routes/meta.js';
 import biodataRoutes from './routes/biodata.js';
 import chatRoutes from './routes/chat.js';
+import shortlistRoutes from './routes/shortlist.js';
 import { securityHeaders } from './middleware/security.js';
 import { asyncHandler } from './utils/asyncHandler.js';
 
@@ -36,7 +37,7 @@ export function createApp() {
     })
   );
 
-  app.use(express.json({ limit: '2mb' }));
+  app.use(express.json({ limit: '4mb' }));
 
   app.get(
     '/api/health',
@@ -72,6 +73,7 @@ export function createApp() {
   app.use('/api/testimonials', testimonialRoutes);
   app.use('/api/contact', contactRoutes);
   app.use('/api/chat', chatRoutes);
+  app.use('/api/shortlist', shortlistRoutes);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

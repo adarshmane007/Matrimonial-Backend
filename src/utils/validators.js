@@ -73,6 +73,7 @@ export const profileRules = [
   body('bio').optional({ values: 'null' }).trim().isLength({ max: 8000 }),
   body('salary').optional({ values: 'null' }).trim().isLength({ max: 80 }),
   body('photoUrl').optional({ values: 'null' }).trim().isLength({ max: 500000 }),
+  body('biodataUrl').optional({ values: 'null' }).trim().isLength({ max: 2800000 }),
   body('incomeBracket')
     .optional({ values: 'null' })
     .isIn(['below_3', '3_5', '5_10', '10_20', 'above_20']),

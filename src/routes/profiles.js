@@ -114,10 +114,11 @@ router.get(
       return res.status(404).json({ success: false, message: 'Profile not found' });
     }
 
+    const lang = req.query.lang === 'mr' ? 'mr' : 'en';
     res.json({
       success: true,
       data: {
-        ...toPublicProfile(row),
+        ...toPublicProfile(row, lang, { includeBiodata: true }),
         email: req.user.email ?? null,
         mobile: req.user.mobile ?? null,
         fullName: req.user.full_name,
@@ -211,15 +212,23 @@ router.get(
     const limit = Math.min(Number(req.query.limit) || 6, 20);
 
     const params = [limit];
-    let exclude = '';
+    const conditions = ["visibility != 'hidden'"];
+    let paramIdx = 2;
+
     if (req.user?.id) {
-      exclude = ' AND user_id != $2';
+      conditions.push(`user_id != $${paramIdx++}`);
       params.push(req.user.id);
+    }
+
+    const genderFilter = req.query.gender;
+    if (genderFilter === 'bride' || genderFilter === 'groom') {
+      conditions.push(`gender = $${paramIdx++}`);
+      params.push(genderFilter);
     }
 
     const rows = await queryAll(
       `SELECT * FROM profiles
-       WHERE visibility != 'hidden'${exclude}
+       WHERE ${conditions.join(' AND ')}
        ORDER BY is_featured DESC, is_verified DESC, created_at DESC
        LIMIT $1`,
       params
@@ -245,8 +254,10 @@ router.get(
       return res.status(404).json({ success: false, message: 'Profile not found' });
     }
 
-    const profile = toPublicProfile(row, lang);
-    const chat = await getChatStatus(req.user?.id, row.user_id);
+    const viewerId = req.user?.id;
+    const includeBiodata = Boolean(viewerId && viewerId !== row.user_id && row.biodata_url);
+    const profile = toPublicProfile(row, lang, { includeBiodata });
+    const chat = await getChatStatus(viewerId, row.user_id);
     const chatStatus = typeof chat === 'string' ? chat : chat.status;
 
     res.json({
@@ -300,6 +311,7 @@ router.put(
       native_place: req.body.nativePlace?.trim(),
       father_occupation: req.body.fatherOccupation?.trim(),
       photo_url: req.body.photoUrl?.trim(),
+      biodata_url: req.body.biodataUrl?.trim(),
       visibility: req.body.visibility,
       is_online: req.body.isOnline !== undefined ? Boolean(req.body.isOnline) : undefined,
     };
@@ -334,7 +346,11 @@ router.put(
     await query(`UPDATE profiles SET ${updates.join(', ')} WHERE user_id = $${i}`, values);
 
     const updated = await queryOne('SELECT * FROM profiles WHERE user_id = $1', [req.user.id]);
-    res.json({ success: true, data: toPublicProfile(updated) });
+    const lang = req.query.lang === 'mr' ? 'mr' : 'en';
+    res.json({
+      success: true,
+      data: toPublicProfile(updated, lang, { includeBiodata: true }),
+    });
   })
 );
 

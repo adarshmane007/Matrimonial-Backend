@@ -183,6 +183,17 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS father_occupation TEXT;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS height_cm INTEGER;
 ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS read_at TIMESTAMPTZ;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS state TEXT DEFAULT 'mh';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS biodata_url TEXT;
+
+CREATE TABLE IF NOT EXISTS shortlisted_profiles (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (user_id, profile_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_shortlisted_user ON shortlisted_profiles (user_id, created_at DESC);
 `;
 
 export async function initDatabase() {

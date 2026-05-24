@@ -19,7 +19,7 @@ function labelFor(list, value, lang) {
   return lang === 'mr' ? item.labelMr : item.labelEn;
 }
 
-export function toPublicProfile(row, lang = 'en') {
+export function toPublicProfile(row, lang = 'en', { includeBiodata = false } = {}) {
   const state = row.state || 'mh';
   const districtLabel = formatCityLabel(state, row.district, row.city, lang);
   const stateLabel = formatStateLabel(state, lang);
@@ -77,6 +77,8 @@ export function toPublicProfile(row, lang = 'en') {
     familyTypeLabel: labelFor(FAMILY_TYPES, row.family_type, lang),
     fatherOccupation: row.father_occupation,
     photoUrl: row.photo_url,
+    biodataUrl: includeBiodata ? row.biodata_url || null : null,
+    hasBiodata: Boolean(row.biodata_url),
     isVerified: Boolean(row.is_verified),
     isOnline: Boolean(row.is_online),
     isFeatured: Boolean(row.is_featured),
