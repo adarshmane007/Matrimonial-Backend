@@ -21,6 +21,10 @@ export const registerRules = [
     .optional({ values: 'null' })
     .matches(/^\+?[0-9]{10,15}$/)
     .withMessage('Invalid mobile number'),
+  body('mobileVerificationToken')
+    .optional({ values: 'null' })
+    .trim()
+    .isLength({ min: 32, max: 128 }),
   body('password').isLength({ min: 6, max: 128 }),
   body('gender').isIn(['bride', 'groom']),
   body('age').isInt({ min: 18, max: 80 }),

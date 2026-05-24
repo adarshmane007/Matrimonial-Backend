@@ -12,6 +12,10 @@ import {
   purgeExpiredAccountDeletions,
   resolveUserOrDelete,
 } from '../utils/accountDeletion.js';
+import {
+  validateMobileForRegister,
+  normalizedMobileForRegister,
+} from '../otp/registerGuard.js';
 
 async function ensureDeletionColumn() {
   await query(
@@ -48,6 +52,14 @@ router.post(
   registerRules,
   validate,
   asyncHandler(async (req, res) => {
+    const otpError = await validateMobileForRegister({
+      mobile: req.body.mobile,
+      mobileVerificationToken: req.body.mobileVerificationToken,
+    });
+    if (otpError) {
+      return res.status(otpError.status).json({ success: false, message: otpError.message });
+    }
+
     const loc = normalizeLocationInput(req.body);
 
     const {
@@ -67,7 +79,8 @@ router.post(
     } = req.body;
 
     const normalizedEmail = email?.toLowerCase() || null;
-    const normalizedMobile = mobile?.replace(/\s/g, '') || null;
+    const normalizedMobile =
+      normalizedMobileForRegister(mobile) || mobile?.replace(/\s/g, '') || null;
 
     if (normalizedEmail) {
       const exists = await queryOne('SELECT id FROM users WHERE email = $1', [normalizedEmail]);

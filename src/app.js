@@ -13,6 +13,7 @@ import metaRoutes from './routes/meta.js';
 import biodataRoutes from './routes/biodata.js';
 import chatRoutes from './routes/chat.js';
 import shortlistRoutes from './routes/shortlist.js';
+import { mountOtpRoutes } from './otp/index.js';
 import { securityHeaders } from './middleware/security.js';
 import { asyncHandler } from './utils/asyncHandler.js';
 
@@ -74,6 +75,7 @@ export function createApp() {
   app.use('/api/contact', contactRoutes);
   app.use('/api/chat', chatRoutes);
   app.use('/api/shortlist', shortlistRoutes);
+  mountOtpRoutes(app);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

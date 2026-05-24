@@ -1,12 +1,14 @@
 import { createApp } from './app.js';
 import { config } from './config.js';
 import { initDatabase, closePool } from './db/database.js';
+import { initOtpModule } from './otp/index.js';
 import { seedIfEmpty } from './seed.js';
 
 async function main() {
   try {
     console.log('Starting database initialization...');
     await initDatabase();
+    await initOtpModule();
     console.log('PostgreSQL connected and schema ready');
   } catch (err) {
     console.error('Database initialization failed:', err);
