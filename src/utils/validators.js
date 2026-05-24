@@ -137,3 +137,5 @@ export const contactRules = [
 ];
 
 export const profileIdParam = [param('id').isInt({ min: 1 })];
+
+export const shortlistProfileIdParam = [param('profileId').isInt({ min: 1 })];

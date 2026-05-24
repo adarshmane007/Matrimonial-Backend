@@ -3,7 +3,7 @@ import { param } from 'express-validator';
 import { queryAll, queryOne } from '../db/database.js';
 import { authenticate } from '../middleware/auth.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { validate, profileIdParam } from '../utils/validators.js';
+import { validate, shortlistProfileIdParam } from '../utils/validators.js';
 import { toPublicProfile } from '../utils/profileMapper.js';
 
 const router = Router();
@@ -45,7 +45,7 @@ router.get(
 router.post(
   '/:profileId',
   authenticate,
-  profileIdParam,
+  shortlistProfileIdParam,
   validate,
   asyncHandler(async (req, res) => {
     const profileId = Number(req.params.profileId);
@@ -66,7 +66,7 @@ router.post(
 router.delete(
   '/:profileId',
   authenticate,
-  profileIdParam,
+  shortlistProfileIdParam,
   validate,
   asyncHandler(async (req, res) => {
     await queryOne(
