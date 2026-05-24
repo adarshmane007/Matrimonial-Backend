@@ -194,6 +194,8 @@ CREATE TABLE IF NOT EXISTS shortlisted_profiles (
 );
 
 CREATE INDEX IF NOT EXISTS idx_shortlisted_user ON shortlisted_profiles (user_id, created_at DESC);
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS deletion_scheduled_at TIMESTAMPTZ;
 `;
 
 export async function initDatabase() {

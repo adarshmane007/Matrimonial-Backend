@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { query, queryOne, queryAll } from '../db/database.js';
 import { authenticate, optionalAuth } from '../middleware/auth.js';
 import {
@@ -13,6 +14,15 @@ import { normalizeLocationInput } from '../locations.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 const router = Router();
+
+const photoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter(_req, file, cb) {
+    const ok = /^image\/(jpeg|jpg|png|webp)$/i.test(file.mimetype);
+    cb(ok ? null : new Error('Only JPG, PNG, or WebP images are allowed'), ok);
+  },
+});
 
 function buildSearchQuery(filters) {
   const conditions = ["p.visibility != 'hidden'"];
@@ -127,6 +137,60 @@ router.get(
   })
 );
 
+router.post(
+  '/me/photo',
+  authenticate,
+  (req, res, next) => {
+    photoUpload.single('photo')(req, res, (err) => {
+      if (err) {
+        return res.status(400).json({
+          success: false,
+          message: err.message || 'Invalid photo upload',
+        });
+      }
+      next();
+    });
+  },
+  asyncHandler(async (req, res) => {
+    if (!req.file?.buffer?.length) {
+      return res.status(400).json({ success: false, message: 'Please choose a photo to upload' });
+    }
+
+    const mime =
+      req.file.mimetype === 'image/png'
+        ? 'image/png'
+        : req.file.mimetype === 'image/webp'
+          ? 'image/webp'
+          : 'image/jpeg';
+    const dataUrl = `data:${mime};base64,${req.file.buffer.toString('base64')}`;
+
+    if (dataUrl.length > 2_000_000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Photo is too large. Please use a smaller image (under 1 MB).',
+      });
+    }
+
+    const existing = await queryOne('SELECT id FROM profiles WHERE user_id = $1', [req.user.id]);
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Profile not found' });
+    }
+
+    await query(
+      `UPDATE profiles SET photo_url = $1, updated_at = NOW() WHERE user_id = $2`,
+      [dataUrl, req.user.id]
+    );
+
+    const updated = await queryOne('SELECT * FROM profiles WHERE user_id = $1', [req.user.id]);
+    const lang = req.query.lang === 'mr' ? 'mr' : 'en';
+    res.json({
+      success: true,
+      message: 'Profile photo updated',
+      data: toPublicProfile(updated, lang, { includeBiodata: true }),
+    });
+  })
+);
+
 router.get(
   '/search',
   searchRules,
@@ -212,24 +276,25 @@ router.get(
     const limit = Math.min(Number(req.query.limit) || 6, 20);
 
     const params = [limit];
-    const conditions = ["visibility != 'hidden'"];
+    const conditions = ["p.visibility != 'hidden'", 'u.deletion_scheduled_at IS NULL'];
     let paramIdx = 2;
 
     if (req.user?.id) {
-      conditions.push(`user_id != $${paramIdx++}`);
+      conditions.push(`p.user_id != $${paramIdx++}`);
       params.push(req.user.id);
     }
 
     const genderFilter = req.query.gender;
     if (genderFilter === 'bride' || genderFilter === 'groom') {
-      conditions.push(`gender = $${paramIdx++}`);
+      conditions.push(`p.gender = $${paramIdx++}`);
       params.push(genderFilter);
     }
 
     const rows = await queryAll(
-      `SELECT * FROM profiles
+      `SELECT p.* FROM profiles p
+       INNER JOIN users u ON u.id = p.user_id
        WHERE ${conditions.join(' AND ')}
-       ORDER BY is_featured DESC, is_verified DESC, created_at DESC
+       ORDER BY p.is_featured DESC, p.is_verified DESC, p.created_at DESC
        LIMIT $1`,
       params
     );
@@ -310,7 +375,10 @@ router.put(
       family_type: req.body.familyType,
       native_place: req.body.nativePlace?.trim(),
       father_occupation: req.body.fatherOccupation?.trim(),
-      photo_url: req.body.photoUrl?.trim(),
+      photo_url:
+        req.body.photoUrl !== undefined && req.body.photoUrl !== null
+          ? String(req.body.photoUrl).trim()
+          : undefined,
       biodata_url: req.body.biodataUrl?.trim(),
       visibility: req.body.visibility,
       is_online: req.body.isOnline !== undefined ? Boolean(req.body.isOnline) : undefined,

@@ -72,7 +72,17 @@ export const profileRules = [
   body('kul').optional({ values: 'null' }).trim().isLength({ max: 60 }),
   body('bio').optional({ values: 'null' }).trim().isLength({ max: 8000 }),
   body('salary').optional({ values: 'null' }).trim().isLength({ max: 80 }),
-  body('photoUrl').optional({ values: 'null' }).trim().isLength({ max: 500000 }),
+  body('photoUrl')
+    .optional({ values: 'null' })
+    .custom((val) => {
+      if (val == null || val === '') return true;
+      if (typeof val !== 'string') throw new Error('Invalid photo');
+      const s = val.trim();
+      if (s.length > 2_000_000) throw new Error('Photo file is too large');
+      if (s.startsWith('data:image/')) return true;
+      if (s.startsWith('http://') || s.startsWith('https://')) return s.length <= 2000;
+      throw new Error('Invalid photo format');
+    }),
   body('biodataUrl').optional({ values: 'null' }).trim().isLength({ max: 2800000 }),
   body('incomeBracket')
     .optional({ values: 'null' })

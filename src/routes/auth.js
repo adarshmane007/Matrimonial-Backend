@@ -7,6 +7,11 @@ import { registerRules, loginRules, validate } from '../utils/validators.js';
 import { toPublicProfile } from '../utils/profileMapper.js';
 import { normalizeLocationInput } from '../locations.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import {
+  deletionStatusForUser,
+  purgeExpiredAccountDeletions,
+  resolveUserOrDelete,
+} from '../utils/accountDeletion.js';
 
 const router = Router();
 
@@ -28,6 +33,7 @@ function formatUser(user) {
     fullName: user.full_name,
     isVerified: Boolean(user.is_verified),
     createdAt: user.created_at,
+    accountDeletion: deletionStatusForUser(user),
   };
 }
 
@@ -130,21 +136,32 @@ router.post(
   validate,
   asyncHandler(async (req, res) => {
     const { identifier, password } = req.body;
+    await purgeExpiredAccountDeletions();
     const user = await findUserByIdentifier(identifier);
 
     if (!user || !bcrypt.compareSync(password, user.password_hash)) {
       return res.status(401).json({ success: false, message: 'Invalid email/mobile or password' });
     }
 
-    const profile = await queryOne('SELECT * FROM profiles WHERE user_id = $1', [user.id]);
-    const token = signToken(user.id);
+    const { user: activeUser, deleted } = await resolveUserOrDelete(user.id);
+    if (!activeUser) {
+      return res.status(401).json({
+        success: false,
+        message: deleted
+          ? 'Your account has been permanently deleted.'
+          : 'Invalid email/mobile or password',
+      });
+    }
+
+    const profile = await queryOne('SELECT * FROM profiles WHERE user_id = $1', [activeUser.id]);
+    const token = signToken(activeUser.id);
 
     res.json({
       success: true,
       message: 'Login successful',
       data: {
         token,
-        user: formatUser(user),
+        user: formatUser(activeUser),
         profile: profile ? toPublicProfile(profile) : null,
       },
     });
@@ -162,6 +179,78 @@ router.get(
         user: formatUser(req.user),
         profile: profile ? toPublicProfile(profile) : null,
       },
+    });
+  })
+);
+
+router.post(
+  '/account/delete-request',
+  authenticate,
+  asyncHandler(async (req, res) => {
+    if (req.user.deletion_scheduled_at) {
+      return res.json({
+        success: true,
+        message: 'Account deletion is already scheduled.',
+        data: { accountDeletion: deletionStatusForUser(req.user) },
+      });
+    }
+
+    await withTransaction(async (client) => {
+      await client.query(
+        `UPDATE users SET deletion_scheduled_at = NOW(), updated_at = NOW() WHERE id = $1`,
+        [req.user.id]
+      );
+      await client.query(
+        `UPDATE profiles SET visibility = 'hidden', updated_at = NOW() WHERE user_id = $1`,
+        [req.user.id]
+      );
+    });
+
+    const user = await queryOne('SELECT * FROM users WHERE id = $1', [req.user.id]);
+    res.json({
+      success: true,
+      message:
+        'Your account is scheduled for deletion in 24 hours. You can recover it until then.',
+      data: { user: formatUser(user), accountDeletion: deletionStatusForUser(user) },
+    });
+  })
+);
+
+router.post(
+  '/account/cancel-deletion',
+  authenticate,
+  asyncHandler(async (req, res) => {
+    if (!req.user.deletion_scheduled_at) {
+      return res.status(400).json({
+        success: false,
+        message: 'No account deletion is scheduled.',
+      });
+    }
+
+    const status = deletionStatusForUser(req.user);
+    if (!status?.canRecover) {
+      return res.status(410).json({
+        success: false,
+        message: 'The recovery period has ended. Your account can no longer be restored.',
+      });
+    }
+
+    await withTransaction(async (client) => {
+      await client.query(
+        `UPDATE users SET deletion_scheduled_at = NULL, updated_at = NOW() WHERE id = $1`,
+        [req.user.id]
+      );
+      await client.query(
+        `UPDATE profiles SET visibility = 'members', updated_at = NOW() WHERE user_id = $1`,
+        [req.user.id]
+      );
+    });
+
+    const user = await queryOne('SELECT * FROM users WHERE id = $1', [req.user.id]);
+    res.json({
+      success: true,
+      message: 'Account deletion cancelled. Your profile is visible again.',
+      data: { user: formatUser(user), accountDeletion: deletionStatusForUser(user) },
     });
   })
 );
