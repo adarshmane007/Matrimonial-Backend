@@ -320,10 +320,15 @@ router.get(
     }
 
     const viewerId = req.user?.id;
-    const includeBiodata = Boolean(viewerId && viewerId !== row.user_id && row.biodata_url);
-    const profile = toPublicProfile(row, lang, { includeBiodata });
     const chat = await getChatStatus(viewerId, row.user_id);
     const chatStatus = typeof chat === 'string' ? chat : chat.status;
+    const includeBiodata = Boolean(
+      viewerId &&
+        viewerId !== row.user_id &&
+        row.biodata_url &&
+        chatStatus === 'accepted'
+    );
+    const profile = toPublicProfile(row, lang, { includeBiodata });
 
     res.json({
       success: true,

@@ -12,6 +12,7 @@ import {
   purgeExpiredAccountDeletions,
   resolveUserOrDelete,
 } from '../utils/accountDeletion.js';
+import { normalizeMobileE164, mobileLookupVariants } from '../utils/normalizeMobile.js';
 
 async function ensureDeletionColumn() {
   await query(
@@ -26,9 +27,10 @@ async function findUserByIdentifier(identifier) {
   if (trimmed.includes('@')) {
     return queryOne('SELECT * FROM users WHERE email = $1', [trimmed.toLowerCase()]);
   }
-  const mobile = trimmed.replace(/\s/g, '');
-  const withPlus = mobile.startsWith('+') ? mobile : `+91${mobile.replace(/^0/, '')}`;
-  return queryOne('SELECT * FROM users WHERE mobile = $1 OR mobile = $2', [mobile, withPlus]);
+  const variants = mobileLookupVariants(trimmed);
+  if (!variants.length) return null;
+  const placeholders = variants.map((_, i) => `$${i + 1}`).join(', ');
+  return queryOne(`SELECT * FROM users WHERE mobile IN (${placeholders})`, variants);
 }
 
 function formatUser(user) {
@@ -67,7 +69,11 @@ router.post(
     } = req.body;
 
     const normalizedEmail = email?.toLowerCase() || null;
-    const normalizedMobile = mobile?.replace(/\s/g, '') || null;
+    const normalizedMobile = mobile ? normalizeMobileE164(mobile) : null;
+
+    if (mobile && !normalizedMobile) {
+      return res.status(400).json({ success: false, message: 'Invalid mobile number' });
+    }
 
     if (normalizedEmail) {
       const exists = await queryOne('SELECT id FROM users WHERE email = $1', [normalizedEmail]);
@@ -76,9 +82,17 @@ router.post(
       }
     }
     if (normalizedMobile) {
-      const exists = await queryOne('SELECT id FROM users WHERE mobile = $1', [normalizedMobile]);
+      const variants = mobileLookupVariants(mobile);
+      const placeholders = variants.map((_, i) => `$${i + 1}`).join(', ');
+      const exists = await queryOne(
+        `SELECT id FROM users WHERE mobile IN (${placeholders})`,
+        variants
+      );
       if (exists) {
-        return res.status(409).json({ success: false, message: 'Mobile already registered' });
+        return res.status(409).json({
+          success: false,
+          message: 'This mobile number is already registered. One account per phone number.',
+        });
       }
     }
 

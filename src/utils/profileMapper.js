@@ -78,7 +78,7 @@ export function toPublicProfile(row, lang = 'en', { includeBiodata = false } = {
     fatherOccupation: row.father_occupation,
     photoUrl: row.photo_url,
     biodataUrl: includeBiodata ? row.biodata_url || null : null,
-    hasBiodata: Boolean(row.biodata_url),
+    hasBiodata: includeBiodata ? Boolean(row.biodata_url) : false,
     isVerified: Boolean(row.is_verified),
     isOnline: Boolean(row.is_online),
     isFeatured: Boolean(row.is_featured),

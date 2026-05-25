@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { query, queryOne, queryAll } from '../db/database.js';
+import { query, queryOne, queryAll, withTransaction } from '../db/database.js';
 import { authenticate } from '../middleware/auth.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { body, param } from 'express-validator';
@@ -284,6 +284,38 @@ router.get(
         isMine: m.sender_id === req.user.id,
         createdAt: m.created_at,
       })),
+    });
+  })
+);
+
+router.post(
+  '/conversations/:id/disconnect',
+  [param('id').isInt({ min: 1 })],
+  validate,
+  asyncHandler(async (req, res) => {
+    const conv = await queryOne('SELECT * FROM chat_conversations WHERE id = $1', [req.params.id]);
+    if (!conv || (conv.user_one_id !== req.user.id && conv.user_two_id !== req.user.id)) {
+      return res.status(404).json({ success: false, message: 'Conversation not found' });
+    }
+
+    const otherUserId =
+      conv.user_one_id === req.user.id ? conv.user_two_id : conv.user_one_id;
+
+    await withTransaction(async (client) => {
+      await client.query('DELETE FROM chat_messages WHERE conversation_id = $1', [conv.id]);
+      await client.query('DELETE FROM chat_conversations WHERE id = $1', [conv.id]);
+      await client.query(
+        `DELETE FROM chat_requests
+         WHERE (from_user_id = $1 AND to_user_id = $2)
+            OR (from_user_id = $2 AND to_user_id = $1)`,
+        [req.user.id, otherUserId]
+      );
+    });
+
+    res.json({
+      success: true,
+      message: 'Connection removed. You can send a new chat request from their profile.',
+      data: { disconnected: true },
     });
   })
 );
