@@ -23,6 +23,7 @@ export const registerRules = [
     .withMessage('Invalid mobile number'),
   body('password').isLength({ min: 6, max: 128 }),
   body('gender').isIn(['bride', 'groom']),
+  body('profileCreator').isIn(['groom', 'bride', 'father', 'mother']),
   body('age').isInt({ min: 18, max: 80 }),
   body('state').optional().trim().isLength({ max: 10 }),
   body('cityKey').optional().trim().isLength({ max: 80 }),
@@ -57,6 +58,7 @@ export const loginRules = [
 
 export const profileRules = [
   body('gender').optional().isIn(['bride', 'groom']),
+  body('profileCreator').optional().isIn(['groom', 'bride', 'father', 'mother']),
   body('displayName').optional().trim().isLength({ min: 2, max: 120 }),
   body('age').optional().isInt({ min: 18, max: 80 }),
   body('state').optional().trim().isLength({ max: 10 }),

@@ -3,6 +3,7 @@ import {
   DISTRICTS,
   EDUCATION_LEVELS,
   GENDERS,
+  PROFILE_CREATORS,
   MARITAL_STATUS,
   DIET_OPTIONS,
   MANGALIK_OPTIONS,
@@ -57,6 +58,7 @@ router.get('/', (req, res) => {
         lang === 'mr' ? 'कोणतेही शिक्षण' : 'Any Education'
       ),
       genders: mapOptions(GENDERS, lang),
+      profileCreators: mapOptions(PROFILE_CREATORS, lang),
       maritalStatuses: mapOptions(
         MARITAL_STATUS,
         lang,

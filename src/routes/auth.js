@@ -59,6 +59,7 @@ router.post(
       mobile,
       password,
       gender,
+      profileCreator,
       age,
       education,
       educationLevel,
@@ -122,12 +123,13 @@ router.post(
 
       await client.query(
         `INSERT INTO profiles (
-          user_id, gender, display_name, age, state, district, city,
+          user_id, gender, profile_creator, display_name, age, state, district, city,
           education, education_level, occupation, height, height_cm, kul, bio, salary, is_featured
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, FALSE)`,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, FALSE)`,
         [
           newUserId,
           gender,
+          profileCreator,
           fullName.trim(),
           age,
           loc.state,

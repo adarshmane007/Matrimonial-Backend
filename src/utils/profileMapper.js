@@ -8,6 +8,7 @@ import {
   FAMILY_TYPES,
   INCOME_BRACKETS,
   EDUCATION_LEVELS,
+  PROFILE_CREATORS,
 } from '../constants.js';
 import { cmToDisplay } from './heightUtils.js';
 import { formatCityLabel, formatStateLabel } from '../locations.js';
@@ -45,6 +46,8 @@ export function toPublicProfile(row, lang = 'en', { includeBiodata = false } = {
     id: row.id,
     displayName: row.display_name,
     gender: row.gender,
+    profileCreator: row.profile_creator || null,
+    profileCreatorLabel: labelFor(PROFILE_CREATORS, row.profile_creator, lang),
     age: row.age,
     state,
     stateLabel,

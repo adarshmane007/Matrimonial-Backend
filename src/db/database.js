@@ -184,6 +184,8 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS height_cm INTEGER;
 ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS read_at TIMESTAMPTZ;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS state TEXT DEFAULT 'mh';
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS biodata_url TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS profile_creator TEXT
+  CHECK (profile_creator IS NULL OR profile_creator IN ('groom', 'bride', 'father', 'mother'));
 
 CREATE TABLE IF NOT EXISTS shortlisted_profiles (
   id SERIAL PRIMARY KEY,

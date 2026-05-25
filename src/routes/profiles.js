@@ -359,6 +359,7 @@ router.put(
 
     const fields = {
       gender: req.body.gender,
+      profile_creator: req.body.profileCreator,
       display_name: req.body.displayName?.trim(),
       age: req.body.age,
       state: loc.state,
