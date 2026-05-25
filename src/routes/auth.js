@@ -114,6 +114,10 @@ router.post(
     }
 
     const passwordHash = bcrypt.hashSync(password, 10);
+    const displayNameEn = fullName.trim();
+    const displayNameMrValue =
+      displayNameMr?.trim() ||
+      (hasDevanagari(displayNameEn) ? displayNameEn : null);
 
     const userId = await withTransaction(async (client) => {
       const userResult = await client.query(
