@@ -12,6 +12,7 @@ import {
 } from '../constants.js';
 import { cmToDisplay } from './heightUtils.js';
 import { formatCityLabel, formatStateLabel } from '../locations.js';
+import { displayNameForLang } from './displayName.js';
 
 function labelFor(list, value, lang) {
   if (!value) return null;
@@ -44,7 +45,7 @@ export function toPublicProfile(row, lang = 'en', { includeBiodata = false } = {
 
   return {
     id: row.id,
-    displayName: row.display_name,
+    displayName: displayNameForLang(row, lang),
     gender: row.gender,
     profileCreator: row.profile_creator || null,
     profileCreatorLabel: labelFor(PROFILE_CREATORS, row.profile_creator, lang),

@@ -186,6 +186,18 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS state TEXT DEFAULT 'mh';
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS biodata_url TEXT;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS profile_creator TEXT
   CHECK (profile_creator IS NULL OR profile_creator IN ('groom', 'bride', 'father', 'mother'));
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS display_name_mr TEXT;
+
+UPDATE profiles SET display_name_mr = display_name
+  WHERE display_name_mr IS NULL AND display_name ~ '[\u0900-\u097F]';
+
+UPDATE testimonials SET couple_names = '', location = '', married_year = NULL
+  WHERE couple_names IS NOT NULL AND couple_names != '';
+
+UPDATE profiles SET display_name_mr = 'डेमो वधू'
+  WHERE display_name_mr IS NULL AND display_name ILIKE '%demo%bride%';
+UPDATE profiles SET display_name_mr = 'डेमो वर'
+  WHERE display_name_mr IS NULL AND display_name ILIKE '%demo%groom%';
 
 CREATE TABLE IF NOT EXISTS shortlisted_profiles (
   id SERIAL PRIMARY KEY,

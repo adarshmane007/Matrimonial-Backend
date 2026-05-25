@@ -361,6 +361,10 @@ router.put(
       gender: req.body.gender,
       profile_creator: req.body.profileCreator,
       display_name: req.body.displayName?.trim(),
+      display_name_mr:
+        req.body.displayNameMr !== undefined
+          ? req.body.displayNameMr?.trim() || null
+          : undefined,
       age: req.body.age,
       state: loc.state,
       district: loc.district,
