@@ -13,6 +13,7 @@ import {
   resolveUserOrDelete,
 } from '../utils/accountDeletion.js';
 import { normalizeMobileE164, mobileLookupVariants } from '../utils/normalizeMobile.js';
+import { cmToDisplay, parseHeightToCm } from '../utils/heightUtils.js';
 
 async function ensureDeletionColumn() {
   await query(
@@ -63,10 +64,23 @@ router.post(
       educationLevel,
       occupation,
       height,
+      heightCm,
       kul,
       bio,
       salary,
     } = req.body;
+
+    let heightText = height?.trim() || null;
+    let heightCmValue = null;
+    if (heightCm != null && heightCm !== '') {
+      const cm = Number(heightCm);
+      if (cm >= 140 && cm <= 220) {
+        heightCmValue = cm;
+        heightText = cmToDisplay(cm);
+      }
+    } else if (heightText) {
+      heightCmValue = parseHeightToCm(heightText);
+    }
 
     const normalizedEmail = email?.toLowerCase() || null;
     const normalizedMobile = mobile ? normalizeMobileE164(mobile) : null;
@@ -109,8 +123,8 @@ router.post(
       await client.query(
         `INSERT INTO profiles (
           user_id, gender, display_name, age, state, district, city,
-          education, education_level, occupation, height, kul, bio, salary, is_featured
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, FALSE)`,
+          education, education_level, occupation, height, height_cm, kul, bio, salary, is_featured
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, FALSE)`,
         [
           newUserId,
           gender,
@@ -122,7 +136,8 @@ router.post(
           education || null,
           educationLevel || null,
           occupation || null,
-          height || null,
+          heightText,
+          heightCmValue,
           kul || null,
           bio || null,
           salary || null,

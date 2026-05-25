@@ -35,6 +35,7 @@ export const registerRules = [
     .isIn(['grad', 'pg', 'eng', 'med', 'mba']),
   body('occupation').optional({ values: 'null' }).trim().isLength({ max: 120 }),
   body('height').optional({ values: 'null' }).trim().isLength({ max: 20 }),
+  body('heightCm').optional({ values: 'null' }).isInt({ min: 140, max: 220 }),
   body('kul').optional({ values: 'null' }).trim().isLength({ max: 60 }),
   body('bio').optional({ values: 'null' }).trim().isLength({ max: 8000 }),
   body('salary').optional({ values: 'null' }).trim().isLength({ max: 80 }),
