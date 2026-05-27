@@ -12,6 +12,8 @@ REST API for the [Sakal Maratha Matrimonial](../Matrimonial/sakal-maratha-matrim
 
 See **[DEPLOYMENT-ECS.md](./DEPLOYMENT-ECS.md)** for `DATABASE_URL`, security groups, and task definition env vars.
 
+**Shared DB with Data-Dashboard:** If you change `user_admin_messages` (admin broadcast inbox), read **[../IMPORTANTREADME.md](../IMPORTANTREADME.md)** and keep `src/db/database.js` in sync with `Data-Dashboard/lambda/index.js`.
+
 ## Quick start
 
 ### Docker (recommended while AWS deploys)

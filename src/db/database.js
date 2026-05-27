@@ -211,6 +211,17 @@ CREATE INDEX IF NOT EXISTS idx_shortlisted_user ON shortlisted_profiles (user_id
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS deletion_scheduled_at TIMESTAMPTZ;
 
+-- =============================================================================
+-- ADMIN MESSAGES TABLE (canonical schema — keep in sync with Data-Dashboard)
+-- =============================================================================
+-- Used by: Matrimonial-Backend (ECS) for /api/admin/messages/* and by
+-- Data-Dashboard Lambda (broadcast INSERT). Both services share the same RDS.
+--
+-- If you change columns, types, or indexes here, you MUST mirror the change in:
+--   Data-Dashboard/lambda/index.js  →  ADMIN_MESSAGES_DDL
+--
+-- See IMPORTANTREADME.md at repo root for the full checklist and deploy order.
+-- =============================================================================
 CREATE TABLE IF NOT EXISTS user_admin_messages (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

@@ -1,3 +1,10 @@
+/**
+ * Admin messages API (member app + optional ECS broadcast via x-admin-key).
+ *
+ * Database table: user_admin_messages
+ * Schema is defined in src/db/database.js (MIGRATIONS_SQL). Dashboard Lambda
+ * mirrors the same DDL — see IMPORTANTREADME.md before altering columns or queries.
+ */
 import { Router } from 'express';
 import { query, queryAll, queryOne } from '../db/database.js';
 import { authenticate } from '../middleware/auth.js';
