@@ -16,10 +16,14 @@ router.post(
   '/broadcast',
   requireAdminKey,
   asyncHandler(async (req, res) => {
-    const body = String(req.body?.body || '').trim();
+    let body = String(req.body?.body || '').trim();
     const bodyMr = String(req.body?.bodyMr || req.body?.body_mr || '').trim() || null;
+    if (!body && bodyMr) body = bodyMr;
     if (!body) {
-      return res.status(400).json({ success: false, message: 'Message body is required' });
+      return res.status(400).json({
+        success: false,
+        message: 'Message body is required (English or Marathi)',
+      });
     }
 
     const result = await query(
