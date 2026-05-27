@@ -12,6 +12,9 @@ import {
   purgeExpiredAccountDeletions,
   resolveUserOrDelete,
 } from '../utils/accountDeletion.js';
+import { normalizeMobileE164, mobileLookupVariants } from '../utils/normalizeMobile.js';
+import { cmToDisplay, parseHeightToCm } from '../utils/heightUtils.js';
+import { hasDevanagari } from '../utils/displayName.js';
 
 async function ensureDeletionColumn() {
   await query(
@@ -26,9 +29,10 @@ async function findUserByIdentifier(identifier) {
   if (trimmed.includes('@')) {
     return queryOne('SELECT * FROM users WHERE email = $1', [trimmed.toLowerCase()]);
   }
-  const mobile = trimmed.replace(/\s/g, '');
-  const withPlus = mobile.startsWith('+') ? mobile : `+91${mobile.replace(/^0/, '')}`;
-  return queryOne('SELECT * FROM users WHERE mobile = $1 OR mobile = $2', [mobile, withPlus]);
+  const variants = mobileLookupVariants(trimmed);
+  if (!variants.length) return null;
+  const placeholders = variants.map((_, i) => `$${i + 1}`).join(', ');
+  return queryOne(`SELECT * FROM users WHERE mobile IN (${placeholders})`, variants);
 }
 
 function formatUser(user) {
@@ -56,18 +60,37 @@ router.post(
       mobile,
       password,
       gender,
+      profileCreator,
+      displayNameMr,
       age,
       education,
       educationLevel,
       occupation,
       height,
+      heightCm,
       kul,
       bio,
       salary,
     } = req.body;
 
+    let heightText = height?.trim() || null;
+    let heightCmValue = null;
+    if (heightCm != null && heightCm !== '') {
+      const cm = Number(heightCm);
+      if (cm >= 140 && cm <= 220) {
+        heightCmValue = cm;
+        heightText = cmToDisplay(cm);
+      }
+    } else if (heightText) {
+      heightCmValue = parseHeightToCm(heightText);
+    }
+
     const normalizedEmail = email?.toLowerCase() || null;
-    const normalizedMobile = mobile?.replace(/\s/g, '') || null;
+    const normalizedMobile = mobile ? normalizeMobileE164(mobile) : null;
+
+    if (mobile && !normalizedMobile) {
+      return res.status(400).json({ success: false, message: 'Invalid mobile number' });
+    }
 
     if (normalizedEmail) {
       const exists = await queryOne('SELECT id FROM users WHERE email = $1', [normalizedEmail]);
@@ -76,13 +99,25 @@ router.post(
       }
     }
     if (normalizedMobile) {
-      const exists = await queryOne('SELECT id FROM users WHERE mobile = $1', [normalizedMobile]);
+      const variants = mobileLookupVariants(mobile);
+      const placeholders = variants.map((_, i) => `$${i + 1}`).join(', ');
+      const exists = await queryOne(
+        `SELECT id FROM users WHERE mobile IN (${placeholders})`,
+        variants
+      );
       if (exists) {
-        return res.status(409).json({ success: false, message: 'Mobile already registered' });
+        return res.status(409).json({
+          success: false,
+          message: 'This mobile number is already registered. One account per phone number.',
+        });
       }
     }
 
     const passwordHash = bcrypt.hashSync(password, 10);
+    const displayNameEn = fullName.trim();
+    const displayNameMrValue =
+      displayNameMr?.trim() ||
+      (hasDevanagari(displayNameEn) ? displayNameEn : null);
 
     const userId = await withTransaction(async (client) => {
       const userResult = await client.query(
@@ -94,13 +129,15 @@ router.post(
 
       await client.query(
         `INSERT INTO profiles (
-          user_id, gender, display_name, age, state, district, city,
-          education, education_level, occupation, height, kul, bio, salary, is_featured
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, FALSE)`,
+          user_id, gender, profile_creator, display_name, display_name_mr, age, state, district, city,
+          education, education_level, occupation, height, height_cm, kul, bio, salary, is_featured
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, FALSE)`,
         [
           newUserId,
           gender,
-          fullName.trim(),
+          profileCreator,
+          displayNameEn,
+          displayNameMrValue,
           age,
           loc.state,
           loc.district,
@@ -108,7 +145,8 @@ router.post(
           education || null,
           educationLevel || null,
           occupation || null,
-          height || null,
+          heightText,
+          heightCmValue,
           kul || null,
           bio || null,
           salary || null,

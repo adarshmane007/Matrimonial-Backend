@@ -8,9 +8,11 @@ import {
   FAMILY_TYPES,
   INCOME_BRACKETS,
   EDUCATION_LEVELS,
+  PROFILE_CREATORS,
 } from '../constants.js';
 import { cmToDisplay } from './heightUtils.js';
 import { formatCityLabel, formatStateLabel } from '../locations.js';
+import { displayNameForLang } from './displayName.js';
 
 function labelFor(list, value, lang) {
   if (!value) return null;
@@ -43,8 +45,10 @@ export function toPublicProfile(row, lang = 'en', { includeBiodata = false } = {
 
   return {
     id: row.id,
-    displayName: row.display_name,
+    displayName: displayNameForLang(row, lang),
     gender: row.gender,
+    profileCreator: row.profile_creator || null,
+    profileCreatorLabel: labelFor(PROFILE_CREATORS, row.profile_creator, lang),
     age: row.age,
     state,
     stateLabel,
@@ -78,7 +82,7 @@ export function toPublicProfile(row, lang = 'en', { includeBiodata = false } = {
     fatherOccupation: row.father_occupation,
     photoUrl: row.photo_url,
     biodataUrl: includeBiodata ? row.biodata_url || null : null,
-    hasBiodata: Boolean(row.biodata_url),
+    hasBiodata: includeBiodata ? Boolean(row.biodata_url) : false,
     isVerified: Boolean(row.is_verified),
     isOnline: Boolean(row.is_online),
     isFeatured: Boolean(row.is_featured),

@@ -23,6 +23,8 @@ export const registerRules = [
     .withMessage('Invalid mobile number'),
   body('password').isLength({ min: 6, max: 128 }),
   body('gender').isIn(['bride', 'groom']),
+  body('profileCreator').isIn(['groom', 'bride', 'father', 'mother']),
+  body('displayNameMr').optional({ values: 'null' }).trim().isLength({ max: 120 }),
   body('age').isInt({ min: 18, max: 80 }),
   body('state').optional().trim().isLength({ max: 10 }),
   body('cityKey').optional().trim().isLength({ max: 80 }),
@@ -35,6 +37,7 @@ export const registerRules = [
     .isIn(['grad', 'pg', 'eng', 'med', 'mba']),
   body('occupation').optional({ values: 'null' }).trim().isLength({ max: 120 }),
   body('height').optional({ values: 'null' }).trim().isLength({ max: 20 }),
+  body('heightCm').optional({ values: 'null' }).isInt({ min: 140, max: 220 }),
   body('kul').optional({ values: 'null' }).trim().isLength({ max: 60 }),
   body('bio').optional({ values: 'null' }).trim().isLength({ max: 8000 }),
   body('salary').optional({ values: 'null' }).trim().isLength({ max: 80 }),
@@ -56,7 +59,9 @@ export const loginRules = [
 
 export const profileRules = [
   body('gender').optional().isIn(['bride', 'groom']),
+  body('profileCreator').optional().isIn(['groom', 'bride', 'father', 'mother']),
   body('displayName').optional().trim().isLength({ min: 2, max: 120 }),
+  body('displayNameMr').optional({ values: 'null' }).trim().isLength({ max: 120 }),
   body('age').optional().isInt({ min: 18, max: 80 }),
   body('state').optional().trim().isLength({ max: 10 }),
   body('cityKey').optional().trim().isLength({ max: 80 }),

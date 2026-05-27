@@ -11,6 +11,7 @@ const demoProfiles = [
     email: 'priya.jadhav@example.com',
     mobile: '+919876543201',
     fullName: 'Priya Jadhav',
+    fullNameMr: 'प्रिया जाधव',
     gender: 'bride',
     age: 26,
     district: 'pune',
@@ -28,6 +29,7 @@ const demoProfiles = [
     email: 'sneha.patil@example.com',
     mobile: '+919876543202',
     fullName: 'Sneha Patil',
+    fullNameMr: 'स्नेहा पाटील',
     gender: 'bride',
     age: 24,
     district: 'nashik',
@@ -45,6 +47,7 @@ const demoProfiles = [
     email: 'anita.shinde@example.com',
     mobile: '+919876543203',
     fullName: 'Anita Shinde',
+    fullNameMr: 'अनिता शिंदे',
     gender: 'bride',
     age: 27,
     district: 'mumbai',
@@ -62,6 +65,7 @@ const demoProfiles = [
     email: 'rahul.more@example.com',
     mobile: '+919876543204',
     fullName: 'Rahul More',
+    fullNameMr: 'राहुल मोरे',
     gender: 'groom',
     age: 29,
     district: 'kolhapur',
@@ -79,6 +83,7 @@ const demoProfiles = [
     email: 'vikram.deshmukh@example.com',
     mobile: '+919876543205',
     fullName: 'Vikram Deshmukh',
+    fullNameMr: 'विक्रम देशमुख',
     gender: 'groom',
     age: 31,
     district: 'pune',
@@ -96,33 +101,33 @@ const demoProfiles = [
 
 const testimonials = [
   {
-    couple_names: 'Rohit & Jyoti Jadhav',
-    location: 'Pune, Maharashtra • Married 2023',
+    couple_names: '',
+    location: '',
     story_en:
       'We found each other on Sakal Maratha and got married within 8 months. The platform made the whole process smooth and respectful for both families.',
     story_mr:
-      'आम्ही सकाळ मराठावर एकमेकांना सापडलो आणि ८ महिन्यांत लग्न केले. या व्यासपीठाने दोन्ही कुटुंबांसाठी संपूर्ण प्रक्रिया सुरळीत आणि आदरपूर्ण केली.',
-    married_year: 2023,
+      'आम्ही सकल मराठावर एकमेकांना सापडलो आणि ८ महिन्यांत लग्न केले. या व्यासपीठाने दोन्ही कुटुंबांसाठी संपूर्ण प्रक्रिया सुरळीत आणि आदरपूर्ण केली.',
+    married_year: null,
     sort_order: 1,
   },
   {
-    couple_names: 'Suresh & Priya Patil',
-    location: 'Nashik, Maharashtra • Married 2024',
+    couple_names: '',
+    location: '',
     story_en:
       'Being able to filter by Kul and district was incredibly helpful. We found a match from the same taluka with shared family values. Perfect for us!',
     story_mr:
       'कुळ आणि जिल्ह्यानुसार फिल्टर करणे अतिशय उपयुक्त होते. समान कुटुंबीय मूल्ये असलेली त्याच तालुक्यातील जुळणी सापडली!',
-    married_year: 2024,
+    married_year: null,
     sort_order: 2,
   },
   {
-    couple_names: 'Vikram & Meera More',
-    location: 'Kolhapur, Maharashtra • Married 2024',
+    couple_names: '',
+    location: '',
     story_en:
       'My parents were hesitant about online matrimony, but the verification process and family-friendly features won them over. Grateful for this platform!',
     story_mr:
       'ऑनलाइन विवाहसेवेबद्दल पालकांना शंका होती, पण सत्यापन आणि कुटुंब-अनुकूल सुविधांनी त्यांना समजावले. या व्यासपीठाबद्दल कृतज्ञता!',
-    married_year: 2024,
+    married_year: null,
     sort_order: 3,
   },
 ];
@@ -145,15 +150,16 @@ export async function seedIfEmpty() {
 
       await client.query(
         `INSERT INTO profiles (
-          user_id, gender, display_name, age, district, city,
+          user_id, gender, display_name, display_name_mr, age, district, city,
           education, education_level, occupation, height, height_cm, kul,
           marital_status, diet, employment_type, mother_tongue, family_type,
           income_bracket, is_verified, is_online, is_featured, visibility
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, 'members')`,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, 'members')`,
         [
           userId,
           p.gender,
           p.fullName,
+          p.fullNameMr || null,
           p.age,
           p.district,
           p.city,

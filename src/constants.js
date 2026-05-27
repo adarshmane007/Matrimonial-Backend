@@ -20,6 +20,14 @@ export const GENDERS = [
   { value: 'groom', labelEn: 'Groom', labelMr: 'वर' },
 ];
 
+/** Who is creating / managing this matrimonial profile. */
+export const PROFILE_CREATORS = [
+  { value: 'groom', labelEn: 'Groom', labelMr: 'वर' },
+  { value: 'bride', labelEn: 'Bride', labelMr: 'वधू' },
+  { value: 'father', labelEn: 'Father', labelMr: 'वडील' },
+  { value: 'mother', labelEn: 'Mother', labelMr: 'आई' },
+];
+
 export const MARITAL_STATUS = [
   { value: 'never_married', labelEn: 'Never Married', labelMr: 'अविवाहित' },
   { value: 'divorced', labelEn: 'Divorced', labelMr: 'घटस्फोटीत' },

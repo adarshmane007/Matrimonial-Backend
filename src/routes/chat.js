@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { query, queryOne, queryAll } from '../db/database.js';
+import { query, queryOne, queryAll, withTransaction } from '../db/database.js';
 import { authenticate } from '../middleware/auth.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { body, param } from 'express-validator';
@@ -27,6 +27,46 @@ async function getOrCreateConversation(userA, userB) {
   }
   return conv;
 }
+
+async function disconnectConversation(userId, conversationId) {
+  const conv = await queryOne('SELECT * FROM chat_conversations WHERE id = $1', [conversationId]);
+  if (!conv || (conv.user_one_id !== userId && conv.user_two_id !== userId)) {
+    return { ok: false, status: 404, message: 'Conversation not found' };
+  }
+
+  const otherUserId = conv.user_one_id === userId ? conv.user_two_id : conv.user_one_id;
+
+  await withTransaction(async (client) => {
+    await client.query('DELETE FROM chat_messages WHERE conversation_id = $1', [conv.id]);
+    await client.query('DELETE FROM chat_conversations WHERE id = $1', [conv.id]);
+    await client.query(
+      `DELETE FROM chat_requests
+       WHERE (from_user_id = $1 AND to_user_id = $2)
+          OR (from_user_id = $2 AND to_user_id = $1)`,
+      [userId, otherUserId]
+    );
+  });
+
+  return { ok: true };
+}
+
+/** Primary unfriend route (stable path; register before /conversations/:id/*). */
+router.post(
+  '/disconnect',
+  [body('conversationId').isInt({ min: 1 })],
+  validate,
+  asyncHandler(async (req, res) => {
+    const result = await disconnectConversation(req.user.id, req.body.conversationId);
+    if (!result.ok) {
+      return res.status(result.status).json({ success: false, message: result.message });
+    }
+    res.json({
+      success: true,
+      message: 'Connection removed. You can send a new chat request from their profile.',
+      data: { disconnected: true },
+    });
+  })
+);
 
 router.post(
   '/requests',
@@ -284,6 +324,23 @@ router.get(
         isMine: m.sender_id === req.user.id,
         createdAt: m.created_at,
       })),
+    });
+  })
+);
+
+router.post(
+  '/conversations/:id/disconnect',
+  [param('id').isInt({ min: 1 })],
+  validate,
+  asyncHandler(async (req, res) => {
+    const result = await disconnectConversation(req.user.id, Number(req.params.id));
+    if (!result.ok) {
+      return res.status(result.status).json({ success: false, message: result.message });
+    }
+    res.json({
+      success: true,
+      message: 'Connection removed. You can send a new chat request from their profile.',
+      data: { disconnected: true },
     });
   })
 );
