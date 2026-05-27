@@ -13,6 +13,7 @@ import {
 import { cmToDisplay } from './heightUtils.js';
 import { formatCityLabel, formatStateLabel } from '../locations.js';
 import { displayNameForLang } from './displayName.js';
+import { isFoundingMember } from './foundingMembers.js';
 
 function labelFor(list, value, lang) {
   if (!value) return null;
@@ -86,6 +87,7 @@ export function toPublicProfile(row, lang = 'en', { includeBiodata = false } = {
     isVerified: Boolean(row.is_verified),
     isOnline: Boolean(row.is_online),
     isFeatured: Boolean(row.is_featured),
+    isFoundingMember: isFoundingMember(row.user_id),
     subtitle: subParts.join(' • '),
     tags,
     createdAt: row.created_at,

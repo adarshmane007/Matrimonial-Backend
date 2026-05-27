@@ -210,6 +210,18 @@ CREATE TABLE IF NOT EXISTS shortlisted_profiles (
 CREATE INDEX IF NOT EXISTS idx_shortlisted_user ON shortlisted_profiles (user_id, created_at DESC);
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS deletion_scheduled_at TIMESTAMPTZ;
+
+CREATE TABLE IF NOT EXISTS user_admin_messages (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  body TEXT NOT NULL,
+  body_mr TEXT,
+  read_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_admin_messages_user
+  ON user_admin_messages (user_id, created_at DESC);
 `;
 
 export async function initDatabase() {
@@ -218,4 +230,6 @@ export async function initDatabase() {
   await pool.query(
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS deletion_scheduled_at TIMESTAMPTZ`
   );
+  const { refreshFoundingMemberIds } = await import('../utils/foundingMembers.js');
+  await refreshFoundingMemberIds();
 }

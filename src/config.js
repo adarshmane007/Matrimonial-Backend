@@ -43,4 +43,6 @@ export const config = {
     : ['http://localhost:5173', 'http://localhost:5500', 'http://127.0.0.1:5173', 'http://127.0.0.1:5500'],
   seedOnStartup: parseBool(process.env.SEED_ON_STARTUP, !isProduction),
   trustProxy: parseBool(process.env.TRUST_PROXY, isProduction),
+  /** Set in ECS to send admin broadcasts: POST /api/admin/broadcast with header x-admin-key */
+  adminApiKey: process.env.ADMIN_API_KEY || '',
 };
